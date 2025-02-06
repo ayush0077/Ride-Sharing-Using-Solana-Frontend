@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../services/local_storage.dart'; // For loading public key and user type
+import 'dart:async';
+
 
 class RiderMapScreen extends StatefulWidget {
   const RiderMapScreen({Key? key}) : super(key: key);
@@ -16,6 +18,14 @@ class RiderMapScreen extends StatefulWidget {
 class _RiderMapScreenState extends State<RiderMapScreen> {
   final MapController _mapController = MapController();
   // Bounding box for Kathmandu Valley
+    double? _fare;
+  double? _distance;
+  double? _duration;
+  Map<String, dynamic>? _currentRide; // ✅ Declare currentRide
+String? _previousRideStatus = ""; // ✅ Initialize with an empty string
+  // ✅ Store last known ride status
+
+
 final LatLngBounds _kathmanduBounds = LatLngBounds(
   LatLng(27.55, 85.15), // Southwest boundary
   LatLng(27.85, 85.55), // Northeast boundary
@@ -34,6 +44,12 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
     super.initState();
     _loadPublicKey(); // Load the rider's public key dynamically
     _getCurrentLocation();
+      // ✅ Check ride status every 10 seconds
+  Timer.periodic(Duration(seconds: 10), (timer) {
+    if (mounted) {
+      _fetchRideStatus(context);
+    }
+  });
   }
 
   /// Load the rider's public key from local storage
@@ -143,14 +159,23 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
   }
 
   /// Create a new ride.
-  Future<void> _createRide(LatLng pickup, LatLng drop, DateTime startTime, DateTime endTime) async {
+ Future<void> _createRide(
+  LatLng pickup,
+  LatLng drop,
+  DateTime startTime,
+  DateTime endTime
+) async {
   if (_riderPublicKey == null) {
     print("Rider public key is not loaded.");
     return;
   }
 
+ setState(() {
+    _currentRide = null;
+  });
+
   try {
-    final url = Uri.parse("${backendUrl}create-ride"); // Ensure correct URL
+    final url = Uri.parse("${backendUrl}create-ride");
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -167,7 +192,16 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
     print("Response body: ${response.body}");
 
     if (response.statusCode == 201) {
-      print("Ride created successfully");
+      final data = jsonDecode(response.body);
+
+      setState(() {
+        _currentRide = data['ride'];
+        _fare = double.tryParse(data['ride']['fare'].toString()) ?? 0.0;
+        _distance = double.tryParse(data['ride']['distance'].toString()) ?? 0.0;
+         _duration = double.tryParse(data['duration'].toString()) ?? 0.0; // Get duration from the API response
+      });
+
+      print("✅ Ride Created! Fare: $_fare, Distance: $_distance km, Duration: $_duration min");
     } else {
       print("Failed to create ride: ${response.body}");
     }
@@ -175,6 +209,91 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
     print("Error creating ride: $e");
   }
 }
+Future<void> _fetchRideStatus(BuildContext context) async {
+  if (_riderPublicKey == null) return;
+
+  try {
+    final url = Uri.parse("${backendUrl}ride-status?riderPublicKey=$_riderPublicKey");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      setState(() {
+         _currentRide = data['ride']; 
+                 if (data['status'] == "Completed") {
+          _currentRide = null; // ✅ Reset ride if it's completed
+        } else {
+          _currentRide = data; // ✅ Always update to the latest ride
+        } // ✅ Update with latest ride
+      });
+
+      print("✅ Ride status updated: ${data['status']}");
+
+      // ✅ Show ride accepted popup only for the latest ride
+      if (data["status"] == "Accepted") {
+        if (mounted) _showRideAcceptedPopup(context);
+      }
+    } else {
+      print("❌ Error fetching ride status: ${response.body}");
+    }
+  } catch (e) {
+    print("❌ Exception fetching ride status: $e");
+  }
+}
+
+
+
+
+
+void _showRideAcceptedPopup(BuildContext context) { // ✅ Accept context
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Ride Accepted!"),
+        content: const Text("A driver has accepted your ride request. Get ready!"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("OK"),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> _cancelRide() async {
+  if (_currentRide == null) return;
+
+  try {
+    final url = Uri.parse("${backendUrl}cancel-ride");
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "rideId": _currentRide!["rideId"],
+        "riderPublicKey": _riderPublicKey,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print("✅ Ride cancelled successfully.");
+      
+      setState(() {
+        _currentRide = null; // ✅ Reset ride data to remove 'Completed' status
+      });
+    } else {
+      print("❌ Failed to cancel ride: ${response.body}");
+    }
+  } catch (e) {
+    print("❌ Error canceling ride: $e");
+  }
+}
+
+
+
 
 
   @override
@@ -183,9 +302,35 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
       appBar: AppBar(
         centerTitle: true,
         title: const Text("Rider Map"),
+        actions: [
+    IconButton(
+      icon: Icon(Icons.refresh),
+      onPressed: () => _fetchRideStatus(context),// ✅ Manually refresh ride status
+    ),
+  ],
+
       ),
       body: Column(
         children: [
+          if (_currentRide != null && _currentRide!["status"] != "Completed")
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Card(
+              elevation: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Text("🚖 Ride Status: ${_currentRide!["status"]}",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                    SizedBox(height: 5),
+                    Text("Driver: ${_currentRide!["driver"] ?? "Waiting for driver..."}"),
+                    Text("Ride ID: ${_currentRide!["rideId"]}"),
+                  ],
+                ),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
@@ -210,6 +355,41 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
               ],
             ),
           ),
+if (_fare != null && _distance != null && _duration != null)
+  Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Display Fare
+            Text(
+              "Fare: Rs ${_fare!.toStringAsFixed(2)}",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+            ),
+            SizedBox(height: 5), // Adds space between elements
+
+            // Display Distance
+            Text(
+              "Distance: ${_distance!.toStringAsFixed(2)} km",
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 5), // Adds space between elements
+
+            // Display Duration
+            Text(
+              "Duration: ${_duration!.toStringAsFixed(2)} min",
+              style: TextStyle(fontSize: 16, color: Colors.blue),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ),
+
+
           if (_destinationSuggestions.isNotEmpty)
             Expanded(
               child: ListView.builder(

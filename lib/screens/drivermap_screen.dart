@@ -21,13 +21,14 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   Map<String, dynamic>? _currentRide; // Accepted ride details
   final String backendUrl = "http://localhost:3000/"; // Backend URL
   String? _driverPublicKey; // Driver's public key
-
+  
   @override
   void initState() {
     super.initState();
     _loadPublicKey(); // Load driver's public key dynamically
     _getCurrentLocation();
     _fetchAvailableRides();
+    
   }
 
   /// Load the driver's public key from local storage
@@ -74,8 +75,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     }
   }
 
+bool _isLoading = false; // ✅ Track loading state
   /// Fetch available ride requests from the backend.
 Future<void> _fetchAvailableRides() async {
+ setState(() => _isLoading = true);
   try {
     final url = Uri.parse("${backendUrl}get-available-rides");
     final response = await http.get(url);
@@ -113,6 +116,9 @@ Future<void> _fetchAvailableRides() async {
   } catch (e) {
     print("Exception fetching rides: $e");
   }
+  finally {
+    setState(() => _isLoading = false); // ✅ Hide loading spinner
+  }
 }
 
 
@@ -139,26 +145,39 @@ Future<void> _fetchAvailableRides() async {
 }
 
   /// Accept a ride request.
-  Future<void> _acceptRide(String rideId) async {
-    if (_driverPublicKey == null) return;
-    try {
-      final url = Uri.parse("${backendUrl}accept-ride");
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({"rideId": rideId, "driverPublicKey": _driverPublicKey}),
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _currentRide = _availableRides.firstWhere((ride) => ride['rideId'] == rideId);
-          _availableRides.removeWhere((ride) => ride['rideId'] == rideId);
-        });
-      }
-    } catch (e) {
-      print("Error accepting ride: $e");
-    }
+Future<void> _acceptRide(String? rideId, String? rider) async {
+  if (_driverPublicKey == null || rideId == null || rider == null) {
+    print("❌ ERROR: Missing required parameters. rideId: $rideId, rider: $rider");
+    return;
   }
+
+  try {
+    final url = Uri.parse("${backendUrl}accept-ride");
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "rideId": rideId,
+        "driverPublicKey": _driverPublicKey,
+        "riderPublicKey": rider,  // ✅ Use "rider" instead of "riderPublicKey"
+        "status": "Accepted"
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _currentRide = _availableRides.firstWhere((ride) => ride['rideId'] == rideId);
+        _availableRides.removeWhere((ride) => ride['rideId'] == rideId);
+      });
+      print("✅ Ride accepted successfully!");
+    } else {
+      print("❌ Error accepting ride: ${response.body}");
+    }
+  } catch (e) {
+    print("❌ Exception while accepting ride: $e");
+  }
+}
+
 
   /// Complete the current ride.
   Future<void> _completeRide() async {
@@ -200,14 +219,24 @@ Future<void> _fetchAvailableRides() async {
       appBar: AppBar(
         centerTitle: true,
         title: const Text("Driver Map"),
+          actions: [
+    IconButton(
+      icon: Icon(Icons.refresh),
+      onPressed: _fetchAvailableRides, // ✅ Manually refresh rides
+    ),
+  ],
       ),
+      
       body: Column(
         children: [
           // Available Rides List
           if (_currentRide == null)
             Expanded(
               flex: 1,
-              child: _availableRides.isNotEmpty
+                child: _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : _availableRides.isNotEmpty
+              
                   ? ListView.builder(
                       itemCount: _availableRides.length,
                       itemBuilder: (context, index) {
@@ -216,9 +245,20 @@ Future<void> _fetchAvailableRides() async {
                           title: Text("Pickup: ${ride['pickupName']}"),
                           subtitle: Text("Drop: ${ride['dropName']}"),
                           trailing: ElevatedButton(
-                            onPressed: () => _acceptRide(ride['rideId']),
-                            child: const Text("Accept"),
-                          ),
+  onPressed: () {
+    print("Ride Data: ${ride.toString()}"); // ✅ Debugging Log
+    print("rideId: ${ride['rideId']}, rider: ${ride['rider']}"); // ✅ Log rider
+
+    if (ride['rideId'] == null || ride['rider'] == null) {
+      print("❌ ERROR: rideId or rider is NULL");
+      return; // Prevent sending null values
+    }
+
+    _acceptRide(ride['rideId'], ride['rider']); // ✅ Use "rider" instead of "riderPublicKey"
+  },
+  child: const Text("Accept"),
+),
+
                         );
                       },
                     )
@@ -258,7 +298,11 @@ Text(
 ),
 
 
-                  Text("Fare: Rs. ${(int.parse(_currentRide!['fare'].toString()) * 132).toString()}"),
+                Text("Fare: Rs. ${(double.parse(_currentRide!['fare'].toString())).toStringAsFixed(2)}"),
+                Text("Distance: ${_currentRide!['distance'].toStringAsFixed(2)} km"),
+                Text("Duration: ${_currentRide!['duration'].toStringAsFixed(2)} min"),
+
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
