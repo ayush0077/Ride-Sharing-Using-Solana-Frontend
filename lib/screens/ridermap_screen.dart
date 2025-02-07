@@ -23,6 +23,8 @@ class _RiderMapScreenState extends State<RiderMapScreen> {
   double? _duration;
   Map<String, dynamic>? _currentRide; // ✅ Declare currentRide
 String? _previousRideStatus = ""; // ✅ Initialize with an empty string
+String? _currentRideId; // ✅ Store the latest ride ID
+
   // ✅ Store last known ride status
 
 
@@ -218,21 +220,44 @@ Future<void> _fetchRideStatus(BuildContext context) async {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      String newStatus = data['status'];  // ✅ Get latest ride status
 
       setState(() {
-         _currentRide = data['ride']; 
-                 if (data['status'] == "Completed") {
-          _currentRide = null; // ✅ Reset ride if it's completed
-        } else {
-          _currentRide = data; // ✅ Always update to the latest ride
-        } // ✅ Update with latest ride
+        _currentRide = data['ride'];
+
+        if (newStatus == "Completed" || newStatus == "Cancelled") {
+          _currentRide = null; // ✅ Reset ride when completed or cancelled
+        }
       });
 
-      print("✅ Ride status updated: ${data['status']}");
+      print("✅ Ride status updated: $newStatus");
 
-      // ✅ Show ride accepted popup only for the latest ride
-      if (data["status"] == "Accepted") {
-        if (mounted) _showRideAcceptedPopup(context);
+      // ✅ Show snackbar ONLY if status CHANGES (prevents repeat alerts)
+      if (_previousRideStatus != newStatus) {
+        _previousRideStatus = newStatus;  // ✅ Store the new status
+
+        if (newStatus == "Completed") {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("🎉 Your ride has been completed!"),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              )
+            );
+          }
+        }
+
+        if (newStatus == "Cancelled") {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: const Color.fromARGB(255, 175, 91, 76),
+                content: Text("🚨 Your ride has been cancelled!"),
+              )
+            );
+          }
+        }
       }
     } else {
       print("❌ Error fetching ride status: ${response.body}");
@@ -241,6 +266,7 @@ Future<void> _fetchRideStatus(BuildContext context) async {
     print("❌ Exception fetching ride status: $e");
   }
 }
+
 
 
 
