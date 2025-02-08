@@ -24,6 +24,7 @@ class _RiderMapScreenState extends State<RiderMapScreen> {
   Map<String, dynamic>? _currentRide; // ✅ Declare currentRide
 String? _previousRideStatus = ""; // ✅ Initialize with an empty string
 String? _currentRideId; // ✅ Store the latest ride ID
+String? _previousRideId;
 
   // ✅ Store last known ride status
 
@@ -211,6 +212,8 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
     print("Error creating ride: $e");
   }
 }
+
+
 Future<void> _fetchRideStatus(BuildContext context) async {
   if (_riderPublicKey == null) return;
 
@@ -220,27 +223,40 @@ Future<void> _fetchRideStatus(BuildContext context) async {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      String newStatus = data['status'];  // ✅ Get latest ride status
+      String newStatus = data['status'];
+      String newRideId = data['rideId'];
 
       setState(() {
-        _currentRide = data['ride'];
+        if (newRideId != _currentRideId) {
+          _currentRideId = newRideId;
+        }
 
         if (newStatus == "Completed" || newStatus == "Cancelled") {
-          _currentRide = null; // ✅ Reset ride when completed or cancelled
+          _currentRide = null;
+        } else {
+          _currentRide = data;
         }
       });
 
-      print("✅ Ride status updated: $newStatus");
+      print("✅ Ride status updated: $newStatus for Ride ID: $newRideId");
 
-      // ✅ Show snackbar ONLY if status CHANGES (prevents repeat alerts)
-      if (_previousRideStatus != newStatus) {
-        _previousRideStatus = newStatus;  // ✅ Store the new status
+      // ✅ **Show popup if status changes to "Accepted"**
+      if (newStatus == "Accepted" && _previousRideStatus != "Accepted") {
+        if (mounted) {
+          _showRideAcceptedPopup(context); // Call popup function
+        }
+      }
+
+      // ✅ Show snackbar for ride completion/cancellation
+      if ((_previousRideStatus != newStatus || _previousRideId != newRideId) && _currentRideId == newRideId) {
+        _previousRideStatus = newStatus;
+        _previousRideId = newRideId;
 
         if (newStatus == "Completed") {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text("🎉 Your ride has been completed!"),
+                content: Text("🎉 Ride $newRideId has been completed!"),
                 backgroundColor: Colors.green,
                 duration: Duration(seconds: 3),
               )
@@ -252,8 +268,8 @@ Future<void> _fetchRideStatus(BuildContext context) async {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                backgroundColor: const Color.fromARGB(255, 175, 91, 76),
-                content: Text("🚨 Your ride has been cancelled!"),
+                backgroundColor: Colors.red,
+                content: Text("🚨 Ride $newRideId has been cancelled!"),
               )
             );
           }
