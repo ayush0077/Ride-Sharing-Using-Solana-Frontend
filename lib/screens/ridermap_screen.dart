@@ -368,11 +368,26 @@ Future<void> _cancelRide() async {
                     SizedBox(height: 5),
                     Text("Driver: ${_currentRide!["driver"] ?? "Waiting for driver..."}"),
                     Text("Ride ID: ${_currentRide!["rideId"]}"),
+                               if (_currentRide!["status"] != "Cancelled" && _currentRide!["status"] != "Completed")
+              ElevatedButton(
+                onPressed: () async {
+                  await _cancelRide();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red, // Red button for cancel
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+                child: const Text(
+                  "Cancel Ride",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
                   ],
                 ),
               ),
             ),
           ),
+          
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(

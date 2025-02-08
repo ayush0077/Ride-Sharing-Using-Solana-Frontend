@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../services/local_storage.dart'; // For SharedPreferences
+import 'dart:async';
 
 
 class DriverMapScreen extends StatefulWidget {
@@ -20,7 +21,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   List<Map<String, dynamic>> _availableRides = []; // Ride requests
   Map<String, dynamic>? _currentRide; // Accepted ride details
   final String backendUrl = "http://localhost:3000/"; // Backend URL
-  String? _driverPublicKey; // Driver's public key
+  String? _driverPublicKey; 
+     String? _previousRideStatus;// Driver's public key
   
   @override
   void initState() {
@@ -28,7 +30,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     _loadPublicKey(); // Load driver's public key dynamically
     _getCurrentLocation();
     _fetchAvailableRides();
-    
+      // ✅ Poll ride status every 10 seconds
+  Timer.periodic(Duration(seconds: 10), (timer) {
+    if (mounted) {
+      _fetchRideStatus();
+    }
+  });
+ 
   }
 
   /// Load the driver's public key from local storage
@@ -197,21 +205,93 @@ Future<void> _acceptRide(String? rideId, String? rider) async {
   }
 
   /// Cancel the current ride.
-  Future<void> _cancelRide() async {
-    try {
-      final url = Uri.parse("${backendUrl}cancel-ride");
-      await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({"rideId": _currentRide!['rideId']}),
-      );
-      setState(() {
-        _currentRide = null;
-      });
-    } catch (e) {
-      print("Error cancelling ride: $e");
-    }
+Future<void> _cancelRide() async {
+  if (_currentRide == null) {
+    print("❌ ERROR: No active ride to cancel.");
+    return;
   }
+
+  if (!_currentRide!.containsKey('rider') || _currentRide!['rider'] == null) {
+    print("❌ ERROR: Missing riderPublicKey in _currentRide!");
+    return;
+  }
+
+  try {
+    final url = Uri.parse("${backendUrl}cancel-ride");
+    final requestBody = jsonEncode({
+      "rideId": _currentRide!['rideId'],
+      "riderPublicKey": _currentRide!['rider'],  // ✅ Ensure riderPublicKey is included
+    });
+
+    print("🔄 Sending cancel request: $requestBody"); // Debugging
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: requestBody,
+    );
+
+    if (response.statusCode == 200) {
+      print("✅ Ride cancelled successfully.");
+
+      setState(() {
+        _currentRide = null;  // ✅ Ensure UI updates correctly
+      });
+    } else {
+      print("❌ Failed to cancel ride: ${response.body}");
+    }
+  } catch (e) {
+    print("❌ Error cancelling ride: $e");
+  }
+}
+
+
+  Future<void> _fetchRideStatus() async {
+  if (_currentRide == null) return; // No active ride
+
+  try {
+    final url = Uri.parse("http://localhost:3000/ride-status?rideId=${_currentRide!['rideId']}");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      String newStatus = data['status'];
+
+      // ✅ If status changes to "Cancelled", show a Snackbar
+      if (newStatus == "Cancelled" && _previousRideStatus != "Cancelled") {
+        _showCancellationSnackbar();
+      }
+
+      setState(() {
+        _previousRideStatus = newStatus;
+
+        // If ride is canceled, reset _currentRide
+        if (newStatus == "Cancelled") {
+          _currentRide = null;
+        }
+      });
+
+      print("✅ Ride status updated: $newStatus");
+    } else {
+      print("❌ Error fetching ride status: ${response.body}");
+    }
+  } catch (e) {
+    print("❌ Exception fetching ride status: $e");
+  }
+}
+
+/// Show a Snackbar when ride is cancelled
+void _showCancellationSnackbar() {
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text("🚨 The ride has been cancelled by the rider!"),
+      backgroundColor: Colors.red,
+      duration: Duration(seconds: 3),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
