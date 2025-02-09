@@ -279,6 +279,22 @@ Future<void> _cancelRide() async {
     print("❌ Exception fetching ride status: $e");
   }
 }
+Future<void> _logout() async {
+  try {
+    // Clear stored user data
+    await clearLocalStorage(); // ✅ Clears stored public key and user type
+
+    // Navigate to the login screen
+    if (mounted) {
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
+
+    print("✅ Successfully logged out.");
+  } catch (e) {
+    print("❌ Error during logout: $e");
+  }
+}
+
 
 /// Show a Snackbar when ride is cancelled
 void _showCancellationSnackbar() {
@@ -303,6 +319,10 @@ void _showCancellationSnackbar() {
     IconButton(
       icon: Icon(Icons.refresh),
       onPressed: _fetchAvailableRides, // ✅ Manually refresh rides
+    ),
+    IconButton(
+      icon: Icon(Icons.logout), // 🔴 Logout button
+      onPressed: _logout, // ✅ Calls logout function
     ),
   ],
       ),
@@ -433,4 +453,6 @@ Text(
       ),
     );
   }
+  
+  clearLocalStorage() {}
 }
