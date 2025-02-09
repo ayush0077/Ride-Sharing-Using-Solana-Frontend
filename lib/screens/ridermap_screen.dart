@@ -25,6 +25,8 @@ class _RiderMapScreenState extends State<RiderMapScreen> {
 String? _previousRideStatus = ""; // ✅ Initialize with an empty string
 String? _currentRideId; // ✅ Store the latest ride ID
 String? _previousRideId;
+LatLng? _destinationLocation;
+
 
   // ✅ Store last known ride status
 
@@ -124,42 +126,41 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
 
 
   /// Fetch the route from the pickup to the destination.
-  Future<void> _fetchRoute(String destination) async {
-    try {
-      // Geocode destination to get coordinates
-      final geocodeUrl = Uri.parse(
-          "https://nominatim.openstreetmap.org/search?q=$destination&format=json&limit=1");
-      final geocodeResponse = await http.get(geocodeUrl);
+Future<void> _fetchRoute(String destination) async {
+  try {
+    final geocodeUrl = Uri.parse(
+        "https://nominatim.openstreetmap.org/search?q=$destination&format=json&limit=1");
+    final geocodeResponse = await http.get(geocodeUrl);
 
-      if (geocodeResponse.statusCode == 200) {
-        final List geocodeData = jsonDecode(geocodeResponse.body);
-        if (geocodeData.isEmpty) {
-          throw Exception("Destination not found");
-        }
+    if (geocodeResponse.statusCode == 200) {
+      final List geocodeData = jsonDecode(geocodeResponse.body);
+      if (geocodeData.isEmpty) throw Exception("Destination not found");
 
-        final destLat = double.parse(geocodeData[0]['lat']);
-        final destLon = double.parse(geocodeData[0]['lon']);
+      final destLat = double.parse(geocodeData[0]['lat']);
+      final destLon = double.parse(geocodeData[0]['lon']);
 
-        // Fetch route from OSRM
-        final routeUrl = Uri.parse(
-            "https://router.project-osrm.org/route/v1/driving/${_currentLocation.longitude},${_currentLocation.latitude};$destLon,$destLat?overview=full&geometries=geojson");
-        final routeResponse = await http.get(routeUrl);
+      setState(() {
+        _destinationLocation = LatLng(destLat, destLon); // ✅ Store draggable marker position
+      });
 
-        if (routeResponse.statusCode == 200) {
-          final data = jsonDecode(routeResponse.body);
-          final List coordinates = data['routes'][0]['geometry']['coordinates'];
-          setState(() {
-            _routeCoordinates = coordinates
-                .map((coord) => LatLng(coord[1], coord[0]))
-                .toList();
-          });
-          print("Route fetched successfully");
-        }
+      final routeUrl = Uri.parse(
+          "https://router.project-osrm.org/route/v1/driving/${_currentLocation.longitude},${_currentLocation.latitude};${destLon},${destLat}?overview=full&geometries=geojson");
+      final routeResponse = await http.get(routeUrl);
+
+      if (routeResponse.statusCode == 200) {
+        final data = jsonDecode(routeResponse.body);
+        final List coordinates = data['routes'][0]['geometry']['coordinates'];
+        setState(() {
+          _routeCoordinates =
+              coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+        });
       }
-    } catch (e) {
-      print("Error fetching route: $e");
     }
+  } catch (e) {
+    print("Error fetching route: $e");
   }
+}
+
 
   /// Create a new ride.
  Future<void> _createRide(
@@ -283,11 +284,6 @@ Future<void> _fetchRideStatus(BuildContext context) async {
   }
 }
 
-
-
-
-
-
 void _showRideAcceptedPopup(BuildContext context) { // ✅ Accept context
   showDialog(
     context: context,
@@ -334,27 +330,44 @@ Future<void> _cancelRide() async {
   }
 }
 
+Future<void> _fetchRouteFromLatLng(LatLng destination) async {
+  try {
+    final routeUrl = Uri.parse(
+        "https://router.project-osrm.org/route/v1/driving/${_currentLocation.longitude},${_currentLocation.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson");
+    final routeResponse = await http.get(routeUrl);
+
+    if (routeResponse.statusCode == 200) {
+      final data = jsonDecode(routeResponse.body);
+      final List coordinates = data['routes'][0]['geometry']['coordinates'];
+      setState(() {
+        _routeCoordinates =
+            coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+      });
+    }
+  } catch (e) {
+    print("Error fetching route: $e");
+  }
+}
 
 
 
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text("Rider Map"),
-        actions: [
-    IconButton(
-      icon: Icon(Icons.refresh),
-      onPressed: () => _fetchRideStatus(context),// ✅ Manually refresh ride status
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      centerTitle: true,
+      title: const Text("Rider Map"),
+      actions: [
+        IconButton(
+          icon: Icon(Icons.refresh),
+          onPressed: () => _fetchRideStatus(context), // ✅ Manually refresh ride status
+        ),
+      ],
     ),
-  ],
-
-      ),
-      body: Column(
-        children: [
-          if (_currentRide != null && _currentRide!["status"] != "Completed")
+    body: Column(
+      children: [
+        if (_currentRide != null && _currentRide!["status"] != "Completed")
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Card(
@@ -363,161 +376,206 @@ Future<void> _cancelRide() async {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    Text("🚖 Ride Status: ${_currentRide!["status"]}",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                    Text(
+                      "🚖 Ride Status: ${_currentRide!["status"]}",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
                     SizedBox(height: 5),
                     Text("Driver: ${_currentRide!["driver"] ?? "Waiting for driver..."}"),
                     Text("Ride ID: ${_currentRide!["rideId"]}"),
-                               if (_currentRide!["status"] != "Cancelled" && _currentRide!["status"] != "Completed")
-              ElevatedButton(
-                onPressed: () async {
-                  await _cancelRide();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red, // Red button for cancel
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                ),
-                child: const Text(
-                  "Cancel Ride",
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _pickupController,
-                  readOnly: true,
-                  decoration: const InputDecoration(
-                    labelText: "Pickup Location",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _destinationController,
-                  onChanged: (query) => _searchSuggestions(query),
-                  decoration: const InputDecoration(
-                    labelText: "Enter Destination",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-if (_fare != null && _distance != null && _duration != null)
-  Padding(
-    padding: const EdgeInsets.all(8.0),
-    child: Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Display Fare
-            Text(
-              "Fare: Rs ${_fare!.toStringAsFixed(2)}",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-            ),
-            SizedBox(height: 5), // Adds space between elements
-
-            // Display Distance
-            Text(
-              "Distance: ${_distance!.toStringAsFixed(2)} km",
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 5), // Adds space between elements
-
-            // Display Duration
-            Text(
-              "Duration: ${_duration!.toStringAsFixed(2)} min",
-              style: TextStyle(fontSize: 16, color: Colors.blue),
-            ),
-          ],
-        ),
-      ),
-    ),
-  ),
-
-
-          if (_destinationSuggestions.isNotEmpty)
-            Expanded(
-              child: ListView.builder(
-                itemCount: _destinationSuggestions.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text(_destinationSuggestions[index]),
-                    onTap: () async {
-                      _destinationController.text = _destinationSuggestions[index];
-                      _destinationSuggestions = [];
-                      await _fetchRoute(_destinationController.text);
-                    },
-                  );
-                },
-              ),
-            ),
-          Expanded(
-            flex: 2,
-            child: FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                center: _currentLocation,
-                zoom: 14.0,
-                maxBounds: _kathmanduBounds, 
-                interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.pinchZoom, // Prevent extreme zooming
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  subdomains: ['a', 'b', 'c'],
-                ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _currentLocation,
-                      builder: (ctx) => const Icon(
-                        Icons.location_pin,
-                        color: Colors.blue,
-                        size: 40,
+                    if (_currentRide!["status"] != "Cancelled" && _currentRide!["status"] != "Completed")
+                      ElevatedButton(
+                        onPressed: () async {
+                          await _cancelRide();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red, // Red button for cancel
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        ),
+                        child: const Text(
+                          "Cancel Ride",
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
                       ),
-                    ),
                   ],
                 ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _routeCoordinates,
-                      strokeWidth: 4.0,
-                      color: Colors.red,
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
+
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: [
+              TextField(
+                controller: _pickupController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: "Pickup Location",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _destinationController,
+                onChanged: (query) => _searchSuggestions(query),
+                decoration: const InputDecoration(
+                  labelText: "Enter Destination",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        if (_fare != null && _distance != null && _duration != null)
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () async {
-                await _createRide(
-                  _currentLocation,
-                  _routeCoordinates.isNotEmpty ? _routeCoordinates.last : _currentLocation,
-                  DateTime.now(),
-                  DateTime.now().add(const Duration(minutes: 30)),
+            child: Card(
+              elevation: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    // Display Fare
+                    Text(
+                      "Fare: Rs ${_fare!.toStringAsFixed(2)}",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                    SizedBox(height: 5),
+
+                    // Display Distance
+                    Text(
+                      "Distance: ${_distance!.toStringAsFixed(2)} km",
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    SizedBox(height: 5),
+
+                    // Display Duration
+                    Text(
+                      "Duration: ${_duration!.toStringAsFixed(2)} min",
+                      style: TextStyle(fontSize: 16, color: Colors.blue),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+        if (_destinationSuggestions.isNotEmpty)
+          Expanded(
+            child: ListView.builder(
+              itemCount: _destinationSuggestions.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(_destinationSuggestions[index]),
+                  onTap: () async {
+                    _destinationController.text = _destinationSuggestions[index];
+                    _destinationSuggestions = [];
+                    await _fetchRoute(_destinationController.text);
+                  },
                 );
               },
-              child: const Text("Create Ride"),
             ),
           ),
-        ],
-      ),
-    );
-  }
+
+        Expanded(
+          flex: 2,
+          child: FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              center: _currentLocation,
+              zoom: 14.0,
+              maxBounds: _kathmanduBounds,
+              interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.pinchZoom, // Prevent extreme zooming
+              onTap: (tapPosition, point) {
+                setState(() {
+                  _destinationLocation = point; // Move marker on tap
+                });
+                print("Marker moved to: $point");
+                _fetchRouteFromLatLng(point);
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                subdomains: ['a', 'b', 'c'],
+              ),
+
+              MarkerLayer(
+                markers: [
+                  // 📌 Current Location Marker
+                  Marker(
+                    point: _currentLocation,
+                    builder: (ctx) => const Icon(
+                      Icons.location_pin,
+                      color: Colors.blue,
+                      size: 40,
+                    ),
+                  ),
+
+                  // 📌 Draggable Destination Marker
+                  if (_destinationLocation != null)
+                    Marker(
+                      point: _destinationLocation!,
+                      width: 50,
+                      height: 50,
+                      builder: (ctx) => GestureDetector(
+                        onPanUpdate: (details) {
+                          setState(() {
+                            _destinationLocation = LatLng(
+                              _destinationLocation!.latitude - details.delta.dy * 0.0001,
+                              _destinationLocation!.longitude + details.delta.dx * 0.0001,
+                            );
+                          });
+                        },
+                        onPanEnd: (details) async {
+                          print("Marker moved to: $_destinationLocation");
+                          await _fetchRouteFromLatLng(_destinationLocation!);
+                        },
+                        child: const Icon(
+                          Icons.location_pin,
+                          color: Colors.red,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: _routeCoordinates,
+                    strokeWidth: 4.0,
+                    color: Colors.red,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ElevatedButton(
+            onPressed: () async {
+              await _createRide(
+                _currentLocation,
+                _routeCoordinates.isNotEmpty ? _routeCoordinates.last : _currentLocation,
+                DateTime.now(),
+                DateTime.now().add(const Duration(minutes: 30)),
+              );
+            },
+            child: const Text("Create Ride"),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }
