@@ -26,6 +26,8 @@ String? _previousRideStatus = ""; // ✅ Initialize with an empty string
 String? _currentRideId; // ✅ Store the latest ride ID
 String? _previousRideId;
 LatLng? _destinationLocation;
+bool _isDestinationFocused = false; // Add this flag
+
 
 
   // ✅ Store last known ride status
@@ -362,11 +364,25 @@ Future<void> _fetchRouteFromLatLng(LatLng destination) async {
   }
 }
 
+void _refreshMap() async {
+  setState(() {
+    _routeCoordinates = [];  // Clear the route coordinates
+    _destinationLocation = null;  // Clear the destination marker
+    _pickupController.clear();  // Clear the pickup location
+    _destinationController.clear();  // Clear the destination input
+    _isDestinationFocused = false;  // Reset the flag to false when refreshing
+  });
+
+  // Reload the current location and reset any other data
+  await _getCurrentLocation();  // Get the current location again
+  print("Map refreshed!");
+}
 
 
 
 
-  @override
+
+@override
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
@@ -375,7 +391,8 @@ Widget build(BuildContext context) {
       actions: [
         IconButton(
           icon: Icon(Icons.refresh),
-          onPressed: () => _fetchRideStatus(context), // ✅ Manually refresh ride status
+          onPressed: () => _refreshMap(),
+          //onPressed: () => _fetchRideStatus(context), // ✅ Manually refresh ride status
         ),
       ],
     ),
@@ -437,6 +454,11 @@ Widget build(BuildContext context) {
               TextField(
                 controller: _destinationController,
                 onChanged: (query) => _searchSuggestions(query),
+                onTap: () {
+                  setState(() {
+                    _isDestinationFocused = true; // Set flag to true when the text field is tapped
+                  });
+                },
                 decoration: const InputDecoration(
                   labelText: "Enter Destination",
                   border: OutlineInputBorder(),
@@ -507,11 +529,13 @@ Widget build(BuildContext context) {
               maxBounds: _kathmanduBounds,
               interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.pinchZoom, // Prevent extreme zooming
               onTap: (tapPosition, point) {
-                setState(() {
-                  _destinationLocation = point; // Move marker on tap
-                });
-                print("Marker moved to: $point");
-                _fetchRouteFromLatLng(point);
+                if (_isDestinationFocused) {  // Only allow marker placement when destination is focused
+                  setState(() {
+                    _destinationLocation = point; // Move marker on tap
+                  });
+                  print("Marker moved to: $point");
+                  _fetchRouteFromLatLng(point);
+                }
               },
             ),
             children: [
@@ -519,47 +543,61 @@ Widget build(BuildContext context) {
                 urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                 subdomains: ['a', 'b', 'c'],
               ),
-
-              MarkerLayer(
-                markers: [
-                  // 📌 Current Location Marker
-                  Marker(
-                    point: _currentLocation,
-                    builder: (ctx) => const Icon(
-                      Icons.location_pin,
-                      color: Colors.blue,
-                      size: 40,
-                    ),
-                  ),
-
-                  // 📌 Draggable Destination Marker
-                  if (_destinationLocation != null)
-                    Marker(
-                      point: _destinationLocation!,
-                      width: 50,
-                      height: 50,
-                      builder: (ctx) => GestureDetector(
-                        onPanUpdate: (details) {
-                          setState(() {
-                            _destinationLocation = LatLng(
-                              _destinationLocation!.latitude - details.delta.dy * 0.0001,
-                              _destinationLocation!.longitude + details.delta.dx * 0.0001,
-                            );
-                          });
-                        },
-                        onPanEnd: (details) async {
-                          print("Marker moved to: $_destinationLocation");
-                          await _fetchRouteFromLatLng(_destinationLocation!);
-                        },
-                        child: const Icon(
-                          Icons.location_pin,
-                          color: Colors.red,
-                          size: 40,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+MarkerLayer(
+  markers: [
+    // 📌 Current Location (Blue) Marker
+    Marker(
+      point: _currentLocation,
+      width: 50,
+      height: 50,
+      builder: (ctx) => GestureDetector(
+        onPanUpdate: (details) {
+          setState(() {
+            // Update the current location based on the dragging
+            _currentLocation = LatLng(
+              _currentLocation.latitude - details.localPosition.dy * 0.0001,
+              _currentLocation.longitude + details.localPosition.dx * 0.0001,
+            );
+          });
+        },
+        onPanEnd: (details) {
+          print("Blue marker moved to: $_currentLocation");
+        },
+        child: const Icon(
+          Icons.location_pin,
+          color: Colors.blue, // Blue marker color
+          size: 40,
+        ),
+      ),
+    ),
+    // 📌 Draggable Destination (Red) Marker
+    if (_destinationLocation != null)
+      Marker(
+        point: _destinationLocation!,
+        width: 50,
+        height: 50,
+        builder: (ctx) => GestureDetector(
+          onPanUpdate: (details) {
+            setState(() {
+              _destinationLocation = LatLng(
+                _destinationLocation!.latitude - details.localPosition.dy * 0.0001,
+                _destinationLocation!.longitude + details.localPosition.dx * 0.0001,
+              );
+            });
+          },
+          onPanEnd: (details) async {
+            print("Red marker moved to: $_destinationLocation");
+            await _fetchRouteFromLatLng(_destinationLocation!);
+          },
+          child: const Icon(
+            Icons.location_pin,
+            color: Colors.red, // Red marker color
+            size: 40,
+          ),
+        ),
+      ),
+  ],
+),
 
               PolylineLayer(
                 polylines: [
@@ -580,8 +618,7 @@ Widget build(BuildContext context) {
             onPressed: () async {
               await _createRide(
                 _currentLocation,
-                 _destinationLocation!,
-               
+                _destinationLocation!,
                 DateTime.now(),
                 DateTime.now().add(const Duration(minutes: 30)),
               );
