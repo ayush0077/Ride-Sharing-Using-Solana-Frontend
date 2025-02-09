@@ -339,15 +339,29 @@ Future<void> _fetchRouteFromLatLng(LatLng destination) async {
     if (routeResponse.statusCode == 200) {
       final data = jsonDecode(routeResponse.body);
       final List coordinates = data['routes'][0]['geometry']['coordinates'];
+
       setState(() {
-        _routeCoordinates =
-            coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+        _routeCoordinates = coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+        _destinationLocation = destination; // ✅ Update destination
       });
+
+      // Reverse Geocode to get Address for UI update
+      final reverseGeocodeUrl = Uri.parse(
+          "https://nominatim.openstreetmap.org/reverse?lat=${destination.latitude}&lon=${destination.longitude}&format=json");
+      final reverseResponse = await http.get(reverseGeocodeUrl);
+
+      if (reverseResponse.statusCode == 200) {
+        final reverseData = jsonDecode(reverseResponse.body);
+        setState(() {
+          _destinationController.text = reverseData['display_name'] ?? "Unknown location";
+        });
+      }
     }
   } catch (e) {
     print("Error fetching route: $e");
   }
 }
+
 
 
 
@@ -566,7 +580,8 @@ Widget build(BuildContext context) {
             onPressed: () async {
               await _createRide(
                 _currentLocation,
-                _routeCoordinates.isNotEmpty ? _routeCoordinates.last : _currentLocation,
+                 _destinationLocation!,
+               
                 DateTime.now(),
                 DateTime.now().add(const Duration(minutes: 30)),
               );
