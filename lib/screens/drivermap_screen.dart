@@ -17,7 +17,7 @@ class DriverMapScreen extends StatefulWidget {
 
 class _DriverMapScreenState extends State<DriverMapScreen> {
   final MapController _mapController = MapController();
-  LatLng _currentLocation = LatLng(27.7172, 85.3240); // Default: Kathmandu
+  LatLng _currentLocation = LatLng(27.7172, 85.3280); // Default: Kathmandu
   List<Map<String, dynamic>> _availableRides = []; // Ride requests
   Map<String, dynamic>? _currentRide; // Accepted ride details
   final String backendUrl = "http://localhost:3000/"; // Backend URL
@@ -309,6 +309,39 @@ void _showCancellationSnackbar() {
   );
 }
 
+/// Mark the driver as "Reached" at the destination.
+Future<void> _markAsReached() async {
+  if (_currentRide == null) {
+    print("❌ ERROR: No active ride to update.");
+    return;
+  }
+
+  try {
+    final url = Uri.parse("${backendUrl}mark-reached");
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "rideId": _currentRide!['rideId'],
+        "driverPublicKey": _driverPublicKey,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        // Update the current ride status to "Driver Reached"
+        _currentRide!['status'] = 'Driver Reached';
+      });
+      print("✅ Driver status updated to 'Reached'");
+    } else {
+      print("❌ Error marking ride as 'Reached': ${response.body}");
+    }
+  } catch (e) {
+    print("❌ Error updating driver status: $e");
+  }
+}
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -414,6 +447,14 @@ Text(
                         onPressed: _cancelRide,
                         child: const Text("Cancel Ride"),
                       ),
+                        // Reached Button
+            ElevatedButton(
+              onPressed: _markAsReached,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue, // Blue color for Reached button
+              ),
+              child: const Text("I Have Reached"),
+            ),
                     ],
                   ),
                 ],

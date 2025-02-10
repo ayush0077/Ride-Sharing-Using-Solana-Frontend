@@ -239,6 +239,10 @@ Future<void> _fetchRideStatus(BuildContext context) async {
         } else {
           _currentRide = data;
         }
+                // Show popup when the ride status is 'Driver Reached'
+        if (newStatus == "Driver Reached" && _previousRideStatus != "Driver Reached") {
+          _showDriverReachedPopup(context); // Show popup
+        }
       });
 
       print("✅ Ride status updated: $newStatus for Ride ID: $newRideId");
@@ -379,6 +383,55 @@ void _refreshMap() async {
 }
 
 
+// Function to fetch the coordinates of a location and update the marker
+Future<void> _updatePickupLocation(String query) async {
+  if (query.isEmpty) {
+    return;
+  }
+
+  try {
+    final url = Uri.parse("https://nominatim.openstreetmap.org/search?q=$query,Kathmandu,Nepal&format=json&addressdetails=1&limit=1");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+
+      if (data.isNotEmpty) {
+        final lat = double.parse(data[0]['lat']);
+        final lon = double.parse(data[0]['lon']);
+        
+        // Update the location of the blue marker
+        setState(() {
+          _currentLocation = LatLng(lat, lon);
+        });
+
+        // Move the map to the new pickup location
+        _mapController.move(_currentLocation, 14.0);
+      }
+    }
+  } catch (e) {
+    print("Error fetching location: $e");
+  }
+}
+void _showDriverReachedPopup(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Driver Has Reached!"),
+        content: const Text("The driver has arrived at your location. Please meet them."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("OK"),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
 
 
 
@@ -444,7 +497,10 @@ Widget build(BuildContext context) {
             children: [
               TextField(
                 controller: _pickupController,
-                readOnly: true,
+                onChanged: (query) {
+                  _searchSuggestions(query);
+      _updatePickupLocation(query);  // Update location based on input
+    },
                 decoration: const InputDecoration(
                   labelText: "Pickup Location",
                   border: OutlineInputBorder(),
@@ -543,59 +599,45 @@ Widget build(BuildContext context) {
                 urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                 subdomains: ['a', 'b', 'c'],
               ),
-MarkerLayer(
-  markers: [
-    // 📌 Current Location (Blue) Marker
-    Marker(
-      point: _currentLocation,
-      width: 50,
-      height: 50,
-      builder: (ctx) => GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            // Update the current location based on the dragging
-            _currentLocation = LatLng(
-              _currentLocation.latitude - details.localPosition.dy * 0.0001,
-              _currentLocation.longitude + details.localPosition.dx * 0.0001,
-            );
-          });
-        },
-        onPanEnd: (details) {
-          print("Blue marker moved to: $_currentLocation");
-        },
-        child: const Icon(
-          Icons.location_pin,
-          color: Colors.blue, // Blue marker color
-          size: 40,
-        ),
-      ),
-    ),
-    // 📌 Draggable Destination (Red) Marker
-    if (_destinationLocation != null)
-      Marker(
-        point: _destinationLocation!,
-        width: 50,
-        height: 50,
-        builder: (ctx) => GestureDetector(
-          onPanUpdate: (details) {
-            setState(() {
-              _destinationLocation = LatLng(
-                _destinationLocation!.latitude - details.localPosition.dy * 0.0001,
-                _destinationLocation!.longitude + details.localPosition.dx * 0.0001,
-              );
-            });
-          },
-          onPanEnd: (details) async {
-            print("Red marker moved to: $_destinationLocation");
-            await _fetchRouteFromLatLng(_destinationLocation!);
-          },
-          child: const Icon(
-            Icons.location_pin,
-            color: Colors.red, // Red marker color
-            size: 40,
+      MarkerLayer( // Updated: Correct placement inside MarkerLayer
+        markers: [
+          // 📌 Blue Pickup Marker
+          Marker(
+            point: _currentLocation,
+            width: 50,
+            height: 50,
+            builder: (ctx) => const Icon(
+              Icons.location_pin,
+              color: Colors.blue,
+              size: 40,
+            ),
           ),
-        ),
-      ),
+          // 📌
+    // 📌 Draggable Destination (Red) Marker
+          if (_destinationLocation != null) // Only add destination marker if set
+            Marker(
+              point: _destinationLocation!,
+              width: 50,
+              height: 50,
+              builder: (ctx) => GestureDetector(
+                onPanUpdate: (details) {
+                  setState(() {
+                    _destinationLocation = LatLng(
+                      _destinationLocation!.latitude - details.localPosition.dy * 0.0001,
+                      _destinationLocation!.longitude + details.localPosition.dx * 0.0001,
+                    );
+                  });
+                },
+                onPanEnd: (details) async {
+                  await _fetchRouteFromLatLng(_destinationLocation!);
+                },
+                child: const Icon(
+                  Icons.location_pin,
+                  color: Colors.red, // Red marker color
+                  size: 40,
+                ),
+              ),
+            ),
   ],
 ),
 
