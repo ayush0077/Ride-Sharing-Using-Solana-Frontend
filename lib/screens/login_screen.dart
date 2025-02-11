@@ -8,7 +8,7 @@ import 'drivermap_screen.dart';
 import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key); // Added key for proper widget construction
+  const LoginScreen({Key? key}) : super(key: key);
 
   @override
   _LoginScreenState createState() => _LoginScreenState();
@@ -20,14 +20,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true; // Password visibility state
   final ApiService apiService = ApiService(baseUrl: "http://localhost:3000"); // Named parameter
 
-  /// Toggles the visibility of the password
+  // Toggles the visibility of the password
   void _togglePasswordVisibility() {
     setState(() {
       _obscurePassword = !_obscurePassword;
     });
   }
 
-  /// Handles login logic
+  // Handles login logic (keeping it as is)
   Future<void> _login() async {
     final usernameOrNumber = _usernameController.text.trim();
     final password = _passwordController.text.trim();
@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Shows a dialog with an error message
+  // Shows a dialog with an error message
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -103,11 +103,31 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              "Ride Sharing App",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            // Enhanced "RideShare" Title with bold, large, and spaced letters
+            Text(
+              "RIDE SHARE",
+              style: TextStyle(
+                fontSize: 48, // Larger font size
+                fontWeight: FontWeight.bold, // Bold text
+                fontFamily: 'Serif', // Elegant font style
+                letterSpacing: 3.0, // Increased letter spacing for a sleek look
+                color: Colors.black, // Text color
+              ),
             ),
             const SizedBox(height: 20),
+
+            // "Ride the Future" Subtitle with stylish font
+            Text(
+              "Ride the Future",
+              style: TextStyle(
+                fontSize: 24, // Subtle font size for the subtitle
+                fontWeight: FontWeight.w500, // Medium weight for emphasis
+                fontFamily: 'Serif', // Matching font style
+                letterSpacing: 2.0, // Some letter spacing
+                color: Colors.black54, // Subtle color for the subtitle
+              ),
+            ),
+            const SizedBox(height: 40),
             TextField(
               controller: _usernameController,
               decoration: const InputDecoration(

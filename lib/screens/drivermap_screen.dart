@@ -23,6 +23,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   final String backendUrl = "http://localhost:3000/"; // Backend URL
   String? _driverPublicKey; 
      String? _previousRideStatus;// Driver's public key
+   LatLng _fixedPickupLocation = LatLng(27.7120, 85.3100);
   
   @override
   void initState() {
@@ -30,10 +31,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     _loadPublicKey(); // Load driver's public key dynamically
     _getCurrentLocation();
     _fetchAvailableRides();
+   
+
       // ✅ Poll ride status every 10 seconds
   Timer.periodic(Duration(seconds: 10), (timer) {
     if (mounted) {
       _fetchRideStatus();
+
     }
   });
  
@@ -167,8 +171,10 @@ Future<void> _acceptRide(String? rideId, String? rider) async {
       body: jsonEncode({
         "rideId": rideId,
         "driverPublicKey": _driverPublicKey,
-        "riderPublicKey": rider,  // ✅ Use "rider" instead of "riderPublicKey"
+        "riderPublicKey": rider,
         "status": "Accepted"
+        
+        
       }),
     );
 
@@ -177,12 +183,45 @@ Future<void> _acceptRide(String? rideId, String? rider) async {
         _currentRide = _availableRides.firstWhere((ride) => ride['rideId'] == rideId);
         _availableRides.removeWhere((ride) => ride['rideId'] == rideId);
       });
-      print("✅ Ride accepted successfully!");
+
+      // Now update the fixed pickup location based on the pickup address
+      String pickupAddress = _currentRide!['pickupName']; // Address of pickup location
+      LatLng pickupLatLng = await _getLatLngFromAddress(pickupAddress); // Fetch LatLng from address
+
+      setState(() {
+        _fixedPickupLocation = pickupLatLng; // Update the fixed pickup location
+      });
+
+      print("✅ Ride accepted successfully and pickup location updated!");
     } else {
       print("❌ Error accepting ride: ${response.body}");
     }
   } catch (e) {
     print("❌ Exception while accepting ride: $e");
+  }
+}
+Future<LatLng> _getLatLngFromAddress(String address) async {
+  try {
+    final url = Uri.parse(
+      "https://nominatim.openstreetmap.org/search?format=json&q=$address",
+    );
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      if (data.isNotEmpty) {
+        final lat = double.parse(data[0]['lat']);
+        final lng = double.parse(data[0]['lon']);
+        return LatLng(lat, lng); // Return the LatLng of the pickup address
+      } else {
+        throw Exception("Address not found");
+      }
+    } else {
+      throw Exception("Failed to fetch location");
+    }
+  } catch (e) {
+    print("Error getting LatLng from address: $e");
+    return LatLng(0, 0); // Default location if geocoding fails
   }
 }
 
@@ -341,6 +380,29 @@ Future<void> _markAsReached() async {
   }
 }
 
+Future<String> _getTimeToReach(LatLng destination) async {
+  try {
+    // Construct OSRM API URL for calculating route between current location and destination
+    final routeUrl = Uri.parse(
+        "https://router.project-osrm.org/route/v1/driving/${_currentLocation.longitude},${_currentLocation.latitude};${destination.longitude},${destination.latitude}?overview=false&steps=true");
+
+    final response = await http.get(routeUrl);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      // Extracting the duration (in seconds) from the response and converting to minutes
+      final durationInSeconds = data['routes'][0]['duration'];
+      final durationInMinutes = (durationInSeconds / 60).round(); // Convert seconds to minutes
+      return "$durationInMinutes min";
+    } else {
+      return "Unable to calculate time";
+    }
+  } catch (e) {
+    print("Error fetching time to reach: $e");
+    return "Error fetching time";
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -430,7 +492,23 @@ Text(
   ),
 ),
 
-
+      // Display Time to Reach
+      if (_fixedPickupLocation != null)
+        FutureBuilder<String>(
+          future: _getTimeToReach(_fixedPickupLocation!),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Text("Time to reach: Loading...");
+            }
+            if (snapshot.hasData) {
+              return Text(
+                "Time to reach: ${snapshot.data}",
+                style: TextStyle(fontSize: 16, color: Colors.orange),
+              );
+            }
+            return Text("Time to reach: Error");
+          },
+        ),
                 Text("Fare: Rs. ${(double.parse(_currentRide!['fare'].toString())).toStringAsFixed(2)}"),
                 Text("Distance: ${_currentRide!['distance'].toStringAsFixed(2)} km"),
                 Text("Duration: ${_currentRide!['duration'].toStringAsFixed(2)} min"),

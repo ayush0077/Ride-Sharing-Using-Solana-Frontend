@@ -233,7 +233,7 @@ Future<void> _fetchRideStatus(BuildContext context) async {
         if (newRideId != _currentRideId) {
           _currentRideId = newRideId;
         }
-
+        
         if (newStatus == "Completed" || newStatus == "Cancelled") {
           _currentRide = null;
         } else {
