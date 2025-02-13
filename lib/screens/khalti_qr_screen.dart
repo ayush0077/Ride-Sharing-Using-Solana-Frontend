@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
-import 'register_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class KhaltiQRScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          "Khalti QR Upload",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.blue.shade700,
+      ),
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blue.shade700, Colors.purpleAccent.shade200],
+            colors: [Colors.blue.shade700, Colors.blue.shade500],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -18,55 +24,40 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 🚖 Welcome Banner
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0),
-              child: Column(
-                children: [
-                  Icon(Icons.local_taxi, size: 100, color: Colors.white),
-                  SizedBox(height: 10),
-                  Text(
-                    "Welcome to Ride Sharing",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+            // 🎯 Khalti QR Code Icon with Card Styling
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              elevation: 10,
+              shadowColor: Colors.black26,
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    // QR Code image for Khalti
+                    Image.asset(
+                      '/mnt/e/Solana/Ride-Sharing-App-Solana-/flutter_ride_sharing/assets/fonts/QRkhaltI.jpg', // Update the path if needed
+                      height: 350, // Adjust the height
+                      width: 350,  // Adjust the width
+                      fit: BoxFit.contain,  // Display QR code properly
                     ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "Get a ride in minutes!",
-                    style: TextStyle(fontSize: 16, color: Colors.white70),
-                  ),
-                ],
+                    SizedBox(height: 10),
+                    Text(
+                      "Upload your Khalti QR Code",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 30),
 
-            // 🔑 Login Button
-            AnimatedHomeButton(
-              text: "Login",
-              icon: Icons.login,
-              color: Colors.green.shade600,
+            // 📤 Upload QR Button for Khalti
+            AnimatedUploadButton(
+              text: "Upload QR Code",
+              icon: Icons.upload_file,
+              color: Colors.blue.shade600,
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
-            ),
-            SizedBox(height: 20),
-
-            // 📝 Register Button
-            AnimatedHomeButton(
-              text: "Register",
-              icon: Icons.app_registration,
-              color: Colors.orange.shade600,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => RegisterScreen()),
-                );
+                // Implement Khalti QR upload functionality
               },
             ),
           ],
@@ -76,14 +67,14 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// 🎨 Custom Animated Button
-class AnimatedHomeButton extends StatefulWidget {
+// 🎨 Custom Animated Upload Button for Khalti
+class AnimatedUploadButton extends StatefulWidget {
   final String text;
   final IconData icon;
   final Color color;
   final VoidCallback onPressed;
 
-  const AnimatedHomeButton({
+  const AnimatedUploadButton({
     required this.text,
     required this.icon,
     required this.color,
@@ -91,10 +82,10 @@ class AnimatedHomeButton extends StatefulWidget {
   });
 
   @override
-  _AnimatedHomeButtonState createState() => _AnimatedHomeButtonState();
+  _AnimatedUploadButtonState createState() => _AnimatedUploadButtonState();
 }
 
-class _AnimatedHomeButtonState extends State<AnimatedHomeButton> {
+class _AnimatedUploadButtonState extends State<AnimatedUploadButton> {
   bool _isPressed = false;
 
   @override

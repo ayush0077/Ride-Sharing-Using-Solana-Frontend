@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
-import 'register_screen.dart';
+import 'esewa_qr_screen.dart'; // Import eSewa QR Screen
+import 'khalti_qr_screen.dart'; // Import Khalti QR Screen
 
-class HomeScreen extends StatelessWidget {
+class WalletPaymentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          "Wallet Payment",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.purple.shade700,
+      ),
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blue.shade700, Colors.purpleAccent.shade200],
+            colors: [Colors.purple.shade700, Colors.deepPurpleAccent.shade200],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -18,54 +26,29 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 🚖 Welcome Banner
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0),
-              child: Column(
-                children: [
-                  Icon(Icons.local_taxi, size: 100, color: Colors.white),
-                  SizedBox(height: 10),
-                  Text(
-                    "Welcome to Ride Sharing",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "Get a ride in minutes!",
-                    style: TextStyle(fontSize: 16, color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 40),
-
-            // 🔑 Login Button
-            AnimatedHomeButton(
-              text: "Login",
-              icon: Icons.login,
-              color: Colors.green.shade600,
+            // 🟢 Pay via eSewa
+            AnimatedWalletButton(
+              text: "Pay via eSewa",
+              icon: Icons.payment,
+              color: Colors.green,
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  MaterialPageRoute(builder: (context) => EsewaQRScreen()),
                 );
               },
             ),
             SizedBox(height: 20),
 
-            // 📝 Register Button
-            AnimatedHomeButton(
-              text: "Register",
-              icon: Icons.app_registration,
-              color: Colors.orange.shade600,
+            // 🔵 Pay via Khalti
+            AnimatedWalletButton(
+              text: "Pay via Khalti",
+              icon: Icons.account_balance_wallet,
+              color: Colors.blue,
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => RegisterScreen()),
+                  MaterialPageRoute(builder: (context) => KhaltiQRScreen()),
                 );
               },
             ),
@@ -77,13 +60,13 @@ class HomeScreen extends StatelessWidget {
 }
 
 // 🎨 Custom Animated Button
-class AnimatedHomeButton extends StatefulWidget {
+class AnimatedWalletButton extends StatefulWidget {
   final String text;
   final IconData icon;
   final Color color;
   final VoidCallback onPressed;
 
-  const AnimatedHomeButton({
+  const AnimatedWalletButton({
     required this.text,
     required this.icon,
     required this.color,
@@ -91,10 +74,10 @@ class AnimatedHomeButton extends StatefulWidget {
   });
 
   @override
-  _AnimatedHomeButtonState createState() => _AnimatedHomeButtonState();
+  _AnimatedWalletButtonState createState() => _AnimatedWalletButtonState();
 }
 
-class _AnimatedHomeButtonState extends State<AnimatedHomeButton> {
+class _AnimatedWalletButtonState extends State<AnimatedWalletButton> {
   bool _isPressed = false;
 
   @override

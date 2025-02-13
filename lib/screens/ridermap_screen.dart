@@ -42,6 +42,7 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
   final TextEditingController _pickupController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
   List<String> _destinationSuggestions = [];
+  List<String> _pickupSuggestions = [];
   List<LatLng> _routeCoordinates = [];
   String? _riderPublicKey; // Rider's public key
   final String backendUrl = "http://localhost:3000/"; // Backend URL
@@ -97,34 +98,42 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
       print("Error fetching location: $e");
     }
   }
+  
 
   /// Fetch destination suggestions based on user input.
- Future<void> _searchSuggestions(String query) async {
+void _searchSuggestions(String query) async {
   if (query.isEmpty) {
     setState(() {
+      // Clear suggestions if query is empty
       _destinationSuggestions = [];
+      _pickupSuggestions = [];
     });
     return;
   }
 
   try {
-    final url = Uri.parse(
-        "https://nominatim.openstreetmap.org/search?q=$query,Kathmandu,Nepal&format=json&addressdetails=1&limit=5");
-    final response = await http.get(url);
+    String url = "https://nominatim.openstreetmap.org/search?q=$query,Kathmandu,Nepal&format=json&addressdetails=1&limit=5";
+    
+    final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
 
       setState(() {
-        _destinationSuggestions = data
-            .map((item) => item['display_name'] as String)
-            .toList();
+        // Update suggestions based on the focused field
+        if (_isDestinationFocused) {
+          _destinationSuggestions = data.map((item) => item['display_name'] as String).toList();
+        } else {
+          _pickupSuggestions = data.map((item) => item['display_name'] as String).toList();
+        }
       });
     }
   } catch (e) {
     print("Error fetching suggestions: $e");
   }
 }
+
+
 
 
   /// Fetch the route from the pickup to the destination.
@@ -307,6 +316,19 @@ void _showRideAcceptedPopup(BuildContext context) { // ✅ Accept context
     },
   );
 }
+Future<void> _logout() async {
+  try {
+    await clearLocalStorage(); // ✅ Clears stored public key and user type
+
+    if (mounted) {
+      Navigator.of(context).pushReplacementNamed('/login'); // ✅ Redirect to login screen
+    }
+
+    print("✅ Successfully logged out.");
+  } catch (e) {
+    print("❌ Error during logout: $e");
+  }
+}
 
 Future<void> _cancelRide() async {
   if (_currentRide == null) return;
@@ -431,149 +453,241 @@ void _showDriverReachedPopup(BuildContext context) {
   );
 }
 
-
-
-
-
 @override
 Widget build(BuildContext context) {
   return Scaffold(
-    appBar: AppBar(
-      centerTitle: true,
-      title: const Text("Rider Map"),
-      actions: [
-        IconButton(
-          icon: Icon(Icons.refresh),
-          onPressed: () => _refreshMap(),
-          //onPressed: () => _fetchRideStatus(context), // ✅ Manually refresh ride status
-        ),
-      ],
+  appBar: AppBar(
+  title: Text("Rider Map", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+  centerTitle: true,
+  backgroundColor: Colors.transparent,  // Makes the AppBar background transparent
+  elevation: 0,  // Removes the shadow
+  flexibleSpace: Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Colors.blueAccent.shade700, Colors.blue.shade600],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
     ),
+  ),
+  actions: [
+    IconButton(
+      icon: Icon(Icons.refresh),
+      onPressed: _refreshMap, // ✅ Refresh map manually
+    ),
+    IconButton(
+      icon: Icon(Icons.logout),
+      onPressed: _logout, // ✅ Logout button
+    ),
+  ],
+),
+
+
     body: Column(
       children: [
         if (_currentRide != null && _currentRide!["status"] != "Completed")
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Card(
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Text(
-                      "🚖 Ride Status: ${_currentRide!["status"]}",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text("Driver: ${_currentRide!["driver"] ?? "Waiting for driver..."}"),
-                    Text("Ride ID: ${_currentRide!["rideId"]}"),
-                    if (_currentRide!["status"] != "Cancelled" && _currentRide!["status"] != "Completed")
-                      ElevatedButton(
-                        onPressed: () async {
-                          await _cancelRide();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red, // Red button for cancel
-                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        ),
-                        child: const Text(
-                          "Cancel Ride",
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
         Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            children: [
-              TextField(
-                controller: _pickupController,
-                onChanged: (query) {
-                  _searchSuggestions(query);
-      _updatePickupLocation(query);  // Update location based on input
-    },
-                decoration: const InputDecoration(
-                  labelText: "Pickup Location",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _destinationController,
-                onChanged: (query) => _searchSuggestions(query),
-                onTap: () {
-                  setState(() {
-                    _isDestinationFocused = true; // Set flag to true when the text field is tapped
-                  });
-                },
-                decoration: const InputDecoration(
-                  labelText: "Enter Destination",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        if (_fare != null && _distance != null && _duration != null)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Card(
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    // Display Fare
-                    Text(
-                      "Fare: Rs ${_fare!.toStringAsFixed(2)}",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-                    ),
-                    SizedBox(height: 5),
-
-                    // Display Distance
-                    Text(
-                      "Distance: ${_distance!.toStringAsFixed(2)} km",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    SizedBox(height: 5),
-
-                    // Display Duration
-                    Text(
-                      "Duration: ${_duration!.toStringAsFixed(2)} min",
-                      style: TextStyle(fontSize: 16, color: Colors.blue),
-                    ),
-                  ],
-                ),
-              ),
+  padding: const EdgeInsets.all(8.0),
+  child: Card(
+    elevation: 8,  // Added shadow for a more prominent look
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),  // Rounded corners for the card
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,  // Aligns the text to the start
+        children: [
+          Text(
+            "🚖 Ride Status: ${_currentRide!["status"]}",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
             ),
           ),
-
-        if (_destinationSuggestions.isNotEmpty)
-          Expanded(
-            child: ListView.builder(
-              itemCount: _destinationSuggestions.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(_destinationSuggestions[index]),
-                  onTap: () async {
-                    _destinationController.text = _destinationSuggestions[index];
-                    _destinationSuggestions = [];
-                    await _fetchRoute(_destinationController.text);
-                  },
-                );
+          SizedBox(height: 10),  // Increased space between status and next text
+          Text(
+            "Driver: ${_currentRide!["driver"] ?? "Waiting for driver..."}",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+          ),
+          Text(
+            "Ride ID: ${_currentRide!["rideId"]}",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.black54,
+            ),
+          ),
+          SizedBox(height: 20),  // Space before the button
+          if (_currentRide!["status"] != "Cancelled" && _currentRide!["status"] != "Completed")
+            ElevatedButton(
+              onPressed: () async {
+                await _cancelRide();
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,  // Red button for cancel
+                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),  // Custom padding
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),  // Rounded corners for the button
+                ),
+                elevation: 5,  // Add shadow for the button
+              ),
+              child: Text(
+                "Cancel Ride",
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
             ),
+        ],
+      ),
+    ),
+  ),
+),
+
+
+      Padding(
+  padding: const EdgeInsets.all(8.0),
+  child: Column(
+    children: [
+      TextField(
+        controller: _pickupController,
+      
+        onChanged: (query) {
+          _searchSuggestions(query);
+          _updatePickupLocation(query);  // Update location based on input
+        },
+        decoration: InputDecoration(
+          labelText: "Pickup Location",
+          labelStyle: TextStyle(color: Colors.blue.shade700),  // Text color for label
+          prefixIcon: Icon(Icons.location_on, color: Colors.blue),  // Pickup icon
+          filled: true,
+          fillColor: Colors.blue.shade50,  // Light background color for text field
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),  // Rounded corners
+            borderSide: BorderSide(color: Colors.blue.shade700, width: 1),  // Border color
           ),
+          contentPadding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),  // Padding for a more spacious look
+        ),
+      ),
+      
+      
+      const SizedBox(height: 12),  // Increased space between fields
+
+      
+      TextField(
+        controller: _destinationController,
+        onChanged: (query) => _searchSuggestions(query),
+        onTap: () {
+          setState(() {
+            _isDestinationFocused = true; // Set flag to true when the text field is tapped
+          });
+        },
+        decoration: InputDecoration(
+          labelText: "Enter Destination",
+          labelStyle: TextStyle(color: Colors.blue.shade700),  // Text color for label
+          prefixIcon: Icon(Icons.place, color: Colors.red),  // Destination icon
+          filled: true,
+          fillColor: Colors.blue.shade50,  // Light background color for text field
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),  // Rounded corners
+            borderSide: BorderSide(color: Colors.blue.shade700, width: 1),  // Border color
+          ),
+          contentPadding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),  // Padding for a more spacious look
+        ),
+      ),
+    ],
+  ),
+),
+
+
+       if (_fare != null && _distance != null && _duration != null)
+  Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: Card(
+      elevation: 8,  // Increased elevation for more prominent shadow
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),  // Rounded corners
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,  // Align text to the left
+          children: [
+            // Display Fare
+            Text(
+              "Fare: Rs ${_fare!.toStringAsFixed(2)}",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade700,  // Green color for Fare
+              ),
+            ),
+            SizedBox(height: 8),  // Increased space between fare and other fields
+
+            // Display Distance
+            Text(
+              "Distance: ${_distance!.toStringAsFixed(2)} km",
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.black87,  // Dark color for Distance
+              ),
+            ),
+            SizedBox(height: 8),  // Increased space between distance and duration
+
+            // Display Duration
+            Text(
+              "Duration: ${_duration!.toStringAsFixed(2)} min",
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.blue.shade700,  // Blue color for Duration
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ),
+// Show Pickup Suggestions when available
+if (!_isDestinationFocused && _pickupSuggestions.isNotEmpty)
+  Expanded(
+    child: ListView.builder(
+      itemCount: _pickupSuggestions.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          title: Text(_pickupSuggestions[index]),
+          onTap: () {
+            _pickupController.text = _pickupSuggestions[index];
+            setState(() {
+              _pickupSuggestions = [];
+            });
+          },
+        );
+      },
+    ),
+  ),
+
+// Show Destination Suggestions when available
+if (_isDestinationFocused && _destinationSuggestions.isNotEmpty)
+  Expanded(
+    child: ListView.builder(
+      itemCount: _destinationSuggestions.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          title: Text(_destinationSuggestions[index]),
+          onTap: () {
+            _destinationController.text = _destinationSuggestions[index];
+            setState(() {
+              _destinationSuggestions = [];
+            });
+          },
+        );
+      },
+    ),
+  ),
+
+
 
         Expanded(
           flex: 2,
@@ -670,6 +784,34 @@ Widget build(BuildContext context) {
         ),
       ],
     ),
+     floatingActionButton: Column(
+  mainAxisAlignment: MainAxisAlignment.end,
+  children: [
+    FloatingActionButton(
+      heroTag: "refresh",
+      backgroundColor: Colors.green,
+      child: Icon(Icons.refresh),
+      onPressed: _refreshMap,
+      tooltip: "Refresh Location",
+    ),
+    SizedBox(height: 10),
+    FloatingActionButton(
+      heroTag: "logout",
+      backgroundColor: Colors.red,
+      child: Icon(Icons.logout),
+      onPressed: () {
+        _logout(); // Log out user
+      },
+      tooltip: "Logout",
+    ),
+  ],
+),
+
   );
+}
+
+Future<void> clearLocalStorage() async {
+  // Add code to clear local storage
+  print("Local storage cleared.");
 }
 }

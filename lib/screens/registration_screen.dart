@@ -82,57 +82,93 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Register")),
+      appBar: AppBar(
+        title: const Text("Register"),
+        backgroundColor: Colors.blueAccent,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 30.0),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Register as:", style: TextStyle(fontSize: 16)),
-              DropdownButton<String>(
-                value: userType,
-                onChanged: (String? value) {
-                  setState(() {
-                    userType = value!;
-                  });
-                },
-                items: const [
-                  DropdownMenuItem(value: "Rider", child: Text("Rider")),
-                  DropdownMenuItem(value: "Driver", child: Text("Driver")),
-                ],
+              const Text(
+                "Register as:",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: "Name"),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.blue.shade50,
+                ),
+                child: DropdownButton<String>(
+                  value: userType,
+                  onChanged: (String? value) {
+                    setState(() {
+                      userType = value!;
+                    });
+                  },
+                  isExpanded: false,
+                  iconEnabledColor: Colors.blueAccent,
+                  items: const [
+                    DropdownMenuItem(value: "Rider", child: Text("Rider")),
+                    DropdownMenuItem(value: "Driver", child: Text("Driver")),
+                  ],
+                ),
               ),
-              TextField(
-                controller: _contactController,
-                decoration: const InputDecoration(labelText: "Contact"),
-              ),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: "Password"),
-              ),
+              const SizedBox(height: 20),
+
+              _buildTextField(_nameController, "Name", Icons.person),
+              const SizedBox(height: 12),
+              _buildTextField(_contactController, "Contact", Icons.phone),
+              const SizedBox(height: 12),
+              _buildTextField(_passwordController, "Password", Icons.lock, obscureText: true),
+              const SizedBox(height: 12),
+
+              // Only show these fields for the Driver
               if (userType == 'Driver') ...[
-                TextField(
-                  controller: _bikeNumberController,
-                  decoration: const InputDecoration(labelText: "Bike Number"),
-                ),
-                TextField(
-                  controller: _licenseNumberController,
-                  decoration: const InputDecoration(labelText: "License Number"),
-                ),
+                _buildTextField(_bikeNumberController, "Bike Number", Icons.motorcycle),
+                const SizedBox(height: 12),
+                _buildTextField(_licenseNumberController, "License Number", Icons.card_membership),
+                const SizedBox(height: 20),
               ],
-              const SizedBox(height: 16),
+
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent, // Button color
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 onPressed: _register,
                 child: const Text("Register"),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // Custom TextField builder for DRY code
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool obscureText = false}) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: Colors.blueAccent),
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.blueAccent),
+        filled: true,
+        fillColor: Colors.blue.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.blue.shade400),
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
       ),
     );
   }

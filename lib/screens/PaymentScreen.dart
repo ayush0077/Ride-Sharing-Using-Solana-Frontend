@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
-import 'register_screen.dart';
+import 'WalletPaymentScreen.dart';
 
-class HomeScreen extends StatelessWidget {
+class PaymentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          "Choose Payment Method",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.deepPurple,
+      ),
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blue.shade700, Colors.purpleAccent.shade200],
+            colors: [Colors.deepPurple.shade500, Colors.purpleAccent.shade200],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -18,54 +25,26 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 🚖 Welcome Banner
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0),
-              child: Column(
-                children: [
-                  Icon(Icons.local_taxi, size: 100, color: Colors.white),
-                  SizedBox(height: 10),
-                  Text(
-                    "Welcome to Ride Sharing",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "Get a ride in minutes!",
-                    style: TextStyle(fontSize: 16, color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 40),
-
-            // 🔑 Login Button
-            AnimatedHomeButton(
-              text: "Login",
-              icon: Icons.login,
-              color: Colors.green.shade600,
+            // 💰 Cash Payment Button
+            AnimatedButton(
+              text: "Pay via Cash",
+              icon: Icons.attach_money,
+              color: Colors.orange,
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
+                Navigator.pop(context);
               },
             ),
             SizedBox(height: 20),
 
-            // 📝 Register Button
-            AnimatedHomeButton(
-              text: "Register",
-              icon: Icons.app_registration,
-              color: Colors.orange.shade600,
+            // 💳 Wallet Payment Button
+            AnimatedButton(
+              text: "Pay via Wallet",
+              icon: Icons.account_balance_wallet,
+              color: Colors.blue,
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => RegisterScreen()),
+                  MaterialPageRoute(builder: (context) => WalletPaymentScreen()),
                 );
               },
             ),
@@ -76,14 +55,14 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// 🎨 Custom Animated Button
-class AnimatedHomeButton extends StatefulWidget {
+// 🎨 Custom Animated Button Widget
+class AnimatedButton extends StatefulWidget {
   final String text;
   final IconData icon;
   final Color color;
   final VoidCallback onPressed;
 
-  const AnimatedHomeButton({
+  const AnimatedButton({
     required this.text,
     required this.icon,
     required this.color,
@@ -91,10 +70,10 @@ class AnimatedHomeButton extends StatefulWidget {
   });
 
   @override
-  _AnimatedHomeButtonState createState() => _AnimatedHomeButtonState();
+  _AnimatedButtonState createState() => _AnimatedButtonState();
 }
 
-class _AnimatedHomeButtonState extends State<AnimatedHomeButton> {
+class _AnimatedButtonState extends State<AnimatedButton> {
   bool _isPressed = false;
 
   @override

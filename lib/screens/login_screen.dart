@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/local_storage.dart'; // Correct local storage path
-import '../services/api_service.dart'; // Correct API service path
+import '../services/local_storage.dart';
+import '../services/api_service.dart';
 import 'forgotpassword_screen.dart';
 import 'ridermap_screen.dart';
 import 'drivermap_screen.dart';
@@ -17,17 +17,17 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _obscurePassword = true; // Password visibility state
-  final ApiService apiService = ApiService(baseUrl: "http://localhost:3000"); // Named parameter
+  bool _obscurePassword = true;
+  final ApiService apiService = ApiService(baseUrl: "http://localhost:3000");
 
-  // Toggles the visibility of the password
+  // Toggle password visibility
   void _togglePasswordVisibility() {
     setState(() {
       _obscurePassword = !_obscurePassword;
     });
   }
 
-  // Handles login logic (keeping it as is)
+  // Handle login functionality
   Future<void> _login() async {
     final usernameOrNumber = _usernameController.text.trim();
     final password = _passwordController.text.trim();
@@ -46,19 +46,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
       print("Login Response: $response");
 
-      // Extract data from the response
       final token = response['token'];
       final userType = response['userType'];
       final publicKey = response['publicKey'] ?? '';
 
-      // Save the JWT token
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('jwt_token', token);
 
-      // Save the public key and user type locally
       await savePublicKeyAndUserType(publicKey, userType);
 
-      // Navigate based on user type
       if (userType == 'Rider') {
         Navigator.pushReplacement(
           context,
@@ -78,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Shows a dialog with an error message
+  // Error dialog popup
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -98,89 +94,198 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Enhanced "RideShare" Title with bold, large, and spaced letters
-            Text(
-              "RIDE SHARE",
-              style: TextStyle(
-                fontSize: 48, // Larger font size
-                fontWeight: FontWeight.bold, // Bold text
-                fontFamily: 'Serif', // Elegant font style
-                letterSpacing: 3.0, // Increased letter spacing for a sleek look
-                color: Colors.black, // Text color
-              ),
-            ),
-            const SizedBox(height: 20),
+      body: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade800, Colors.purpleAccent.shade200],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Card(
+                elevation: 10,
+                shadowColor: Colors.black45,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 🚖 App Title
+                      Text(
+                        "RideShare",
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      // 🚗 Tagline
+                      Text(
+                        "Ride the Future",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black54,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      SizedBox(height: 30),
 
-            // "Ride the Future" Subtitle with stylish font
-            Text(
-              "Ride the Future",
-              style: TextStyle(
-                fontSize: 24, // Subtle font size for the subtitle
-                fontWeight: FontWeight.w500, // Medium weight for emphasis
-                fontFamily: 'Serif', // Matching font style
-                letterSpacing: 2.0, // Some letter spacing
-                color: Colors.black54, // Subtle color for the subtitle
-              ),
-            ),
-            const SizedBox(height: 40),
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: "Username or Contact",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                labelText: "Password",
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      // 🆔 Username Field
+                      TextField(
+                        controller: _usernameController,
+                        decoration: InputDecoration(
+                          labelText: "Username or Contact",
+                          prefixIcon: Icon(Icons.person, color: Colors.blue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
+                      // 🔒 Password Field
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: "Password",
+                          prefixIcon: Icon(Icons.lock, color: Colors.blue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              color: Colors.blue,
+                            ),
+                            onPressed: _togglePasswordVisibility,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 10),
+
+                      // 🔹 Forgot Password
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text("Forgot Password?"),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
+                      // 🚀 Animated Login Button
+                      AnimatedLoginButton(
+                        text: "Log In",
+                        icon: Icons.login,
+                        color: Colors.green.shade600,
+                        onPressed: _login,
+                      ),
+                      SizedBox(height: 10),
+
+                      // 📌 Register Navigation
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const RegistrationScreen()),
+                          );
+                        },
+                        child: const Text("Don't have an account? Register"),
+                      ),
+                    ],
                   ),
-                  onPressed: _togglePasswordVisibility,
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ForgotPasswordScreen(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// 🎨 Custom Animated Login Button
+class AnimatedLoginButton extends StatefulWidget {
+  final String text;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const AnimatedLoginButton({
+    required this.text,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  _AnimatedLoginButtonState createState() => _AnimatedLoginButtonState();
+}
+
+class _AnimatedLoginButtonState extends State<AnimatedLoginButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onPressed();
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 100),
+        transform: Matrix4.identity()..scale(_isPressed ? 0.95 : 1.0),
+        child: Container(
+          width: double.infinity,
+          height: 50,
+          decoration: BoxDecoration(
+            color: widget.color,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: _isPressed
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 6,
+                      offset: Offset(2, 4),
                     ),
-                  );
-                },
-                child: const Text("Forgot Password?"),
+                  ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(widget.icon, color: Colors.white, size: 24),
+              SizedBox(width: 10),
+              Text(
+                widget.text,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _login,
-              child: const Text("Log In"),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RegistrationScreen()),
-                );
-              },
-              child: const Text("Don't have an account? Register"),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
