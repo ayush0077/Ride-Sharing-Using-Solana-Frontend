@@ -28,6 +28,8 @@ String? _previousRideId;
 LatLng? _destinationLocation;
 bool _isDestinationFocused = false; // Add this flag
 
+String? _rideStatus; // Stores the ride status
+LatLng? _driverLocation = LatLng(27.695558080429666, 85.2973644247388); // Manually set
 
 
   // ✅ Store last known ride status
@@ -185,7 +187,7 @@ Future<void> _fetchRoute(String destination) async {
     return;
   }
 
- setState(() {
+  setState(() {
     _currentRide = null;
   });
 
@@ -206,24 +208,79 @@ Future<void> _fetchRoute(String destination) async {
     print("Response status: ${response.statusCode}");
     print("Response body: ${response.body}");
 
-    if (response.statusCode == 201) {
-      final data = jsonDecode(response.body);
+    final data = jsonDecode(response.body);
 
+    if (response.statusCode == 201) {
       setState(() {
         _currentRide = data['ride'];
         _fare = double.tryParse(data['ride']['fare'].toString()) ?? 0.0;
         _distance = double.tryParse(data['ride']['distance'].toString()) ?? 0.0;
-         _duration = double.tryParse(data['duration'].toString()) ?? 0.0; // Get duration from the API response
+        _duration = double.tryParse(data['duration'].toString()) ?? 0.0;
       });
 
       print("✅ Ride Created! Fare: $_fare, Distance: $_distance km, Duration: $_duration min");
+
+    } else if (response.statusCode == 400) {
+      // ✅ Show popup if the ride is rejected due to short distance
+      if (data.containsKey("message") && data["message"] == "Ride request rejected. Distance must be at least 1 km.") {
+        _showRideRejectedPopup(data["message"], data["distance"]);
+      }
     } else {
-      print("Failed to create ride: ${response.body}");
+      print("❌ Failed to create ride: ${response.body}");
     }
+
   } catch (e) {
-    print("Error creating ride: $e");
+    print("❌ Error creating ride: $e");
   }
 }
+
+
+
+void _showRideRejectedPopup(String message, String distance) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.cancel, color: Colors.red, size: 28), // ✅ Replaces missing emoji
+            SizedBox(width: 8),
+            Text(
+              "Ride Rejected",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start, // ✅ Align text properly
+          children: [
+            Text(
+              message,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
+            ),
+            SizedBox(height: 8),
+            Text(
+              "Requested Distance: $distance",
+              style: TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              "OK",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
 
 
 Future<void> _fetchRideStatus(BuildContext context) async {
@@ -239,6 +296,12 @@ Future<void> _fetchRideStatus(BuildContext context) async {
       String newRideId = data['rideId'];
 
       setState(() {
+        _rideStatus = data["status"];
+              if (_rideStatus == "Accepted") {
+        _driverLocation = LatLng(27.695558080429666, 85.2973644247388);
+      } else {
+        _driverLocation = null; // Hide driver location when not accepted
+      }
         if (newRideId != _currentRideId) {
           _currentRideId = newRideId;
         }
@@ -252,8 +315,9 @@ Future<void> _fetchRideStatus(BuildContext context) async {
         if (newStatus == "Driver Reached" && _previousRideStatus != "Driver Reached") {
           _showDriverReachedPopup(context); // Show popup
         }
+        
       });
-
+        
       print("✅ Ride status updated: $newStatus for Ride ID: $newRideId");
 
       // ✅ **Show popup if status changes to "Accepted"**
@@ -714,7 +778,12 @@ if (_isDestinationFocused && _destinationSuggestions.isNotEmpty)
                 subdomains: ['a', 'b', 'c'],
               ),
       MarkerLayer( // Updated: Correct placement inside MarkerLayer
-        markers: [
+        markers: [if (_rideStatus == "Accepted" && _driverLocation != null)
+          Marker(
+            point: _driverLocation!,
+            builder: (ctx) => Icon(Icons.directions_car, color: Colors.green, size: 30),
+          ),
+          
           // 📌 Blue Pickup Marker
           Marker(
             point: _currentLocation,

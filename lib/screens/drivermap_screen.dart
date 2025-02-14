@@ -519,15 +519,19 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                 children: [
                   const Text(
                     "Accepted Ride Details:",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: TextStyle(   fontFamily: 'NotoSansDevanagari',
+    fontSize: 18,
+    fontWeight: FontWeight.bold, // Ensure weight 700 is used
+    color: Colors.black,),
                   ),
                   Text(
                     "Pickup: ${_currentRide!['pickupName']}",
                     style: TextStyle(
+                      fontFamily: 'NotoSansDevanagari',
                       fontSize: 16,
                       color: Colors.black87,
                       fontWeight: FontWeight.w600, // Stronger emphasis
-                      fontFamily: 'Arial', // Add your custom font
+                     
                     ),
                   ),
 

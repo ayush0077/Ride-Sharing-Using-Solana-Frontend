@@ -6,6 +6,7 @@ import 'forgotpassword_screen.dart';
 import 'ridermap_screen.dart';
 import 'drivermap_screen.dart';
 import 'registration_screen.dart';
+import 'change_password_screen.dart'; 
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -49,11 +50,21 @@ class _LoginScreenState extends State<LoginScreen> {
       final token = response['token'];
       final userType = response['userType'];
       final publicKey = response['publicKey'] ?? '';
-
+      final forceChangePassword = response['forceChangePassword'] ?? false;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('jwt_token', token);
 
       await savePublicKeyAndUserType(publicKey, userType);
+    if (forceChangePassword) {
+      // ✅ Navigate to Change Password Screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangePasswordScreen(username: usernameOrNumber),
+        ),
+      );
+      return;
+    }
 
       if (userType == 'Rider') {
         Navigator.pushReplacement(
