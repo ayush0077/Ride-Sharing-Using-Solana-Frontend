@@ -38,7 +38,7 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
   LatLng(27.85, 85.55), // Northeast boundary
 );
 
-  LatLng _currentLocation = LatLng(27.7172, 85.3240); // Default Kathmandu location
+  LatLng _currentLocation = LatLng(27.689732409781158, 85.29001686524454); // Default Kathmandu location
   final TextEditingController _pickupController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
   List<String> _destinationSuggestions = [];
@@ -470,7 +470,7 @@ Widget build(BuildContext context) {
       ),
     ),
   ),
-  actions: [
+/*  actions: [
     IconButton(
       icon: Icon(Icons.refresh),
       onPressed: _refreshMap, // ✅ Refresh map manually
@@ -479,7 +479,7 @@ Widget build(BuildContext context) {
       icon: Icon(Icons.logout),
       onPressed: _logout, // ✅ Logout button
     ),
-  ],
+  ],*/
 ),
 
 
