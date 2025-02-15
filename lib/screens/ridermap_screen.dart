@@ -222,7 +222,7 @@ Future<void> _fetchRoute(String destination) async {
 
     } else if (response.statusCode == 400) {
       // ✅ Show popup if the ride is rejected due to short distance
-      if (data.containsKey("message") && data["message"] == "Ride request rejected. Distance must be at least 1 km.") {
+      if (data.containsKey("message") && data["message"] ==  "Ride request rejected. Distance must be at least 1 km." ) {
         _showRideRejectedPopup(data["message"], data["distance"]);
       }
     } else {
@@ -236,7 +236,9 @@ Future<void> _fetchRoute(String destination) async {
 
 
 
-void _showRideRejectedPopup(String message, String distance) {
+void _showRideRejectedPopup(String message, dynamic distance) {
+  print("🚀 Inside _showRideRejectedPopup! Message: $message, Distance: $distance");
+  double rideDistance = (distance != null) ? double.tryParse(distance.toString()) ?? 0.0 : 0.0;
   showDialog(
     context: context,
     builder: (context) {
@@ -261,7 +263,7 @@ void _showRideRejectedPopup(String message, String distance) {
             ),
             SizedBox(height: 8),
             Text(
-              "Requested Distance: $distance",
+              "Requested Distance: ${rideDistance.toStringAsFixed(2)} km",
               style: TextStyle(fontSize: 14, color: Colors.black87),
             ),
           ],
