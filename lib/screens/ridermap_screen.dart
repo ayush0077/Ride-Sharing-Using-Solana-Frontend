@@ -6,7 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../services/local_storage.dart'; // For loading public key and user type
 import 'dart:async';
-
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 class RiderMapScreen extends StatefulWidget {
   const RiderMapScreen({Key? key}) : super(key: key);
@@ -27,10 +27,10 @@ String? _currentRideId; // ✅ Store the latest ride ID
 String? _previousRideId;
 LatLng? _destinationLocation;
 bool _isDestinationFocused = false; // Add this flag
-
+ late WebSocketChannel _channel;
 String? _rideStatus; // Stores the ride status
 LatLng? _driverLocation = LatLng(27.695558080429666, 85.2973644247388); // Manually set
-
+String? _driver;
 
   // ✅ Store last known ride status
 
@@ -55,13 +55,92 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
     _loadPublicKey(); // Load the rider's public key dynamically
     _getCurrentLocation();
       // ✅ Check ride status every 10 seconds
-  Timer.periodic(Duration(seconds: 10), (timer) {
+  /*Timer.periodic(Duration(seconds: 10), (timer) {
     if (mounted) {
       _fetchRideStatus(context);
     }
-  });
-  }
+  });*/
+     _channel = WebSocketChannel.connect(
+      Uri.parse('ws://localhost:3000'), // Replace with your WebSocket server URL
+    );
+        // Listen to incoming WebSocket messages
+    _channel.stream.listen((message) {
+      print('Received WebSocket message: $message');
+      try {
+        final data = jsonDecode(message);  // Parse the incoming message
+         
+          if (data['event'] == 'rideCancelled') {
+      print('Ride has been cancelled!');
 
+      // Show Snackbar in real-time
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("🚨 Ride has been cancelled!"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      setState(() {
+        // Update the ride status here if needed
+        _rideStatus = 'Cancelled';
+        _currentRide = null;  // Optionally reset the current ride info
+      });
+    }
+    if (data['event'] == 'rideCompleted') {
+      setState(() {
+        _rideStatus = 'Completed';  // Update the ride status
+        _currentRide = null;         // Clear ride data or reset other state as needed
+      });
+
+      // Show a snackbar to notify the user that the ride has been completed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Your ride has been completed!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+    
+        // Check if the message is the "rideAccepted" event
+        if (data['event'] == 'rideAccepted') {
+                setState(() {
+        // Update ride status here
+        _rideStatus = 'Accepted'; 
+        _currentRide!['status'] = 'Accepted'; 
+         // You may also want to update other details if needed
+      });
+          _showRideAcceptedPopup(context);
+        }
+      } catch (e) {
+        print('Error decoding WebSocket message: $e');
+      }
+       try {
+    final data = jsonDecode(message);  // Try to decode the message
+
+    if (data['event'] == 'driverReached') {
+      
+       setState(() {
+        // Update ride status here
+        _rideStatus = 'Driver Reached'; 
+        _currentRide!['status'] = 'Driver Reached'; 
+         // You may also want to update other details if needed
+      });
+      // Show a pop-up to notify the rider that the driver has reached
+      _showDriverReachedPopup(context);
+    }
+
+  } catch (e) {
+    print('Error decoding WebSocket message: $e');
+  }
+    print('Received WebSocket message: $message');  // Log the raw message
+ 
+    });
+  }
+  @override
+  void dispose() {
+    _channel.sink.close();  // Close WebSocket when the screen is disposed
+    super.dispose();
+  }
   /// Load the rider's public key from local storage
   Future<void> _loadPublicKey() async {
     final data = await getPublicKeyAndUserType();
@@ -285,7 +364,7 @@ void _showRideRejectedPopup(String message, dynamic distance) {
 
 
 
-Future<void> _fetchRideStatus(BuildContext context) async {
+/*Future<void> _fetchRideStatus(BuildContext context) async {
   if (_riderPublicKey == null) return;
 
   try {
@@ -363,7 +442,7 @@ Future<void> _fetchRideStatus(BuildContext context) async {
   } catch (e) {
     print("❌ Exception fetching ride status: $e");
   }
-}
+}*/
 
 void _showRideAcceptedPopup(BuildContext context) { // ✅ Accept context
   showDialog(
@@ -416,6 +495,14 @@ Future<void> _cancelRide() async {
       setState(() {
         _currentRide = null; // ✅ Reset ride data to remove 'Completed' status
       });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("🚨 Ride has been cancelled!"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
     } else {
       print("❌ Failed to cancel ride: ${response.body}");
     }
@@ -501,6 +588,8 @@ Future<void> _updatePickupLocation(String query) async {
     print("Error fetching location: $e");
   }
 }
+
+
 void _showDriverReachedPopup(BuildContext context) {
   showDialog(
     context: context,

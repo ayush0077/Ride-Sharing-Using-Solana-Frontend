@@ -7,8 +7,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/local_storage.dart'; // For SharedPreferences
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'PaymentScreen.dart'; // ✅ Import the PaymentScreen file
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+import 'dart:convert';
 
 class DriverMapScreen extends StatefulWidget {
   const DriverMapScreen({Key? key}) : super(key: key);
@@ -27,6 +29,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   String? _driverPublicKey;
   String? _previousRideStatus; // Driver's public key
   LatLng _fixedPickupLocation = LatLng(27.7120, 85.3100);
+  WebSocketChannel? _channel; // Add this to manage the WebSocket connection
 
   @override
   void initState() {
@@ -34,14 +37,69 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     _loadPublicKey(); // Load driver's public key dynamically
     _getCurrentLocation();
     _fetchAvailableRides();
+     _initializeWebSocket();
 
     // ✅ Poll ride status every 10 seconds
-    Timer.periodic(Duration(seconds: 10), (timer) {
+   /* Timer.periodic(Duration(seconds: 10), (timer) {
       if (mounted) {
         _fetchRideStatus();
       }
+    });*/
+      _channel = WebSocketChannel.connect(
+    Uri.parse('ws://localhost:3000/'),  // Change to your WebSocket server URL
+  );
+    _channel!.stream.listen((message) {
+    _handleWebSocketMessage(message);
+  });
+  }
+void _handleWebSocketMessage(String message) {
+  final data = jsonDecode(message);
+
+  // Handle ride accepted event
+  if (data['event'] == 'rideAccepted') {
+    _handleRideAccepted(data);
+  }
+
+  // Handle ride status change event
+  if (data['event'] == 'rideStatusChanged') {
+    _handleRideStatusChanged(data);
+  }
+}
+void _initializeWebSocket() {
+  _channel = WebSocketChannel.connect(
+    Uri.parse('ws://localhost:3000'), // Replace with your WebSocket URL
+  );
+
+  // Listen to incoming WebSocket messages
+  _channel!.stream.listen((message) {
+    print('Received WebSocket message: $message');  // Log the raw message
+    try {
+      final data = jsonDecode(message);  // Try to decode the message
+      if (data['event'] == 'rideAccepted') {
+        print('Ride accepted!');
+        // Update UI or handle the accepted ride logic here
+        // For example, you can show a Snackbar or update some state
+      }
+    } catch (e) {
+      print('Error decoding WebSocket message: $e');
+    }
+  });
+}
+void _handleRideAccepted(Map<String, dynamic> data) {
+  // Update the current ride details with the new ride info
+  setState(() {
+    _currentRide = data['ride'];
+  });
+}
+
+void _handleRideStatusChanged(Map<String, dynamic> data) {
+  // Update ride status
+  if (_currentRide != null && _currentRide!['rideId'] == data['rideId']) {
+    setState(() {
+      _currentRide!['status'] = data['status'];
     });
   }
+}
 
   /// Load the driver's public key from local storage
   Future<void> _loadPublicKey() async {
@@ -185,6 +243,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
               _availableRides.firstWhere((ride) => ride['rideId'] == rideId);
           _availableRides.removeWhere((ride) => ride['rideId'] == rideId);
         });
+              // Send WebSocket message about the ride acceptance
+      if (_channel != null) {
+        _channel!.sink.add(jsonEncode({
+          'event': 'rideAccepted',
+          'ride': _currentRide,  // Ensure _currentRide is not null
+        }));
+      }
 
         // Now update the fixed pickup location based on the pickup address
         String pickupAddress =
@@ -205,7 +270,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       print("❌ Exception while accepting ride: $e");
     }
   }
-
+@override
+void dispose() {
+  super.dispose();
+  _channel?.sink.close();  // Close the WebSocket connection
+}
   Future<LatLng> _getLatLngFromAddress(String address) async {
     try {
       final url = Uri.parse(
@@ -396,7 +465,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
           // Update the current ride status to "Driver Reached"
           _currentRide!['status'] = 'Driver Reached';
         });
-        print("✅ Driver status updated to 'Reached'");
+        print("✅ Driver status updated to 'Driver Reached'");
       } else {
         print("❌ Error marking ride as 'Reached': ${response.body}");
       }
