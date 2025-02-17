@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http'); // Import http module
+const WebSocket = require('ws'); // Import WebSocket
 const { Connection, PublicKey, Keypair, SystemProgram } = require('@solana/web3.js');
 const { Program, AnchorProvider, Wallet } = require('@project-serum/anchor');
 const bcrypt = require('bcrypt');
@@ -13,9 +15,29 @@ const anchor = require('@project-serum/anchor');
 const cors = require('cors'); // Import cors
 
 const app = express(); // Initialize app here
-
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server }); // Attach WebSocket server
 app.use(cors()); // Use cors middleware after app initialization
 app.use(express.json()); // Parse incoming JSON requests
+
+wss.on('connection', (ws) => {
+  console.log('✅ New WebSocket connection established.');
+
+  ws.on('message', (message) => {
+      console.log(`📩 Received: ${message}`);
+
+      // Broadcast message to all connected clients
+      wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+              client.send(`Broadcast: ${message}`);
+          }
+      });
+  });
+
+  ws.on('close', () => {
+      console.log('❌ WebSocket connection closed.');
+  });
+});
 
 
 // Constants for fare calculation
@@ -295,6 +317,15 @@ app.post('/create-ride', async (req, res) => {
     });
     await newRide.save();
 
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          event: 'newRide',
+          ride: newRide
+        }));
+      }
+    });
+
     // Send back the ride data including fare, distance, and duration
     res.status(201).json({
       message: 'Ride created successfully',
@@ -385,6 +416,16 @@ app.get("/ride-status", async (req, res) => {
       }
 
       console.log(`✅ Returning latest ride status: ${ride.rideId} - ${ride.status}`);
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+                event: 'rideStatusUpdated',
+                rideId: ride.rideId,
+                status: ride.status,
+                driver: ride.driver || "No Driver Assigned"
+            }));
+        }
+    });
       res.status(200).json({
           rideId: ride.rideId,
           status: ride.status,
@@ -414,6 +455,21 @@ app.post('/accept-ride', async (req, res) => {
     ride.status = 'Accepted';
     ride.timeToReach = timeToReach; // Save the time to reach
     await ride.save();
+
+    // Send WebSocket message about the ride acceptance
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          event: 'rideAccepted',
+          ride: {
+            rideId: ride.rideId,
+            driverPublicKey: ride.driver,
+            status: ride.status,
+            timeToReach: ride.timeToReach
+          }
+        }));
+      }
+    });
 
     res.status(200).json({ message: 'Ride accepted successfully', ride });
   } catch (error) {
@@ -450,6 +506,15 @@ app.post('/complete-ride', async (req, res) => {
     await Ride.deleteOne({ rideId });
 
     console.log(`✅ Ride ${rideId} moved to completedrides`);
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          event: 'rideCompleted',  // New event for completed ride
+          rideId: ride.rideId,     // Send ride ID and status
+          status: ride.status,
+        }));
+      }
+    });
     res.status(200).json({ message: 'Ride completed successfully', ride });
 
   } catch (error) {
@@ -486,6 +551,16 @@ app.post('/cancel-ride', async (req, res) => {
       await Ride.deleteOne({ rideId });
 
       console.log(`✅ Ride ${rideId} moved to cancelledrides and status updated to "Cancelled"`);
+      
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            event: 'rideCancelled',  // New event for cancelling the ride
+            rideId: ride.rideId,     // Send ride ID and status
+            status: ride.status,
+          }));
+        }
+      });
 
       res.status(200).json({ message: 'Ride cancelled successfully', ride });
 
@@ -493,6 +568,7 @@ app.post('/cancel-ride', async (req, res) => {
       console.error('❌ Error cancelling ride:', error);
       res.status(500).json({ message: 'Failed to cancel ride', error: error.message });
   }
+  
 });
 
 // **Mark the driver as "Reached"**
@@ -519,7 +595,15 @@ app.post('/mark-reached', async (req, res) => {
     // Update the ride status to "Driver Reached"
     ride.status = 'Driver Reached';
     await ride.save();
-
+  // Notify the rider via WebSocket
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        event: 'driverReached',
+        ride: ride,  // Send the updated ride information
+      }));
+    }
+  });
     // Respond with the updated ride data
     res.status(200).json({
       message: 'Ride status updated to "Driver Reached"',
@@ -557,7 +641,7 @@ app.post('/driver-reached', async (req, res) => {
 
 // **Start the Server**
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
 const nodemailer = require('nodemailer');
 
@@ -656,5 +740,4 @@ app.post('/change-password', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
 
