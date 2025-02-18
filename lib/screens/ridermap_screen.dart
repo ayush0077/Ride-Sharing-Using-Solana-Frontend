@@ -49,93 +49,86 @@ final LatLngBounds _kathmanduBounds = LatLngBounds(
   String? _riderPublicKey; // Rider's public key
   final String backendUrl = "http://localhost:3000/"; // Backend URL
 
-  @override
-  void initState() {
-    super.initState();
-    _loadPublicKey(); // Load the rider's public key dynamically
-    _getCurrentLocation();
-      // ✅ Check ride status every 10 seconds
-  /*Timer.periodic(Duration(seconds: 10), (timer) {
-    if (mounted) {
-      _fetchRideStatus(context);
-    }
-  });*/
-     _channel = WebSocketChannel.connect(
-      Uri.parse('ws://localhost:3000'), // Replace with your WebSocket server URL
-    );
-        // Listen to incoming WebSocket messages
-    _channel.stream.listen((message) {
-      print('Received WebSocket message: $message');
-      try {
-        final data = jsonDecode(message);  // Parse the incoming message
-         
-          if (data['event'] == 'rideCancelled') {
-      print('Ride has been cancelled!');
+@override
+void initState() {
+  super.initState();
+  _loadPublicKey(); // Load the rider's public key dynamically
+  _getCurrentLocation();
 
-      // Show Snackbar in real-time
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("🚨 Ride has been cancelled!"),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      setState(() {
-        // Update the ride status here if needed
-        _rideStatus = 'Cancelled';
-        _currentRide = null;  // Optionally reset the current ride info
-      });
-    }
-    if (data['event'] == 'rideCompleted') {
-      setState(() {
-        _rideStatus = 'Completed';  // Update the ride status
-        _currentRide = null;         // Clear ride data or reset other state as needed
-      });
+  _channel = WebSocketChannel.connect(
+    Uri.parse('ws://localhost:3000'), // Replace with your WebSocket server URL
+  );
 
-      // Show a snackbar to notify the user that the ride has been completed
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Your ride has been completed!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
-    
-        // Check if the message is the "rideAccepted" event
-        if (data['event'] == 'rideAccepted') {
-                setState(() {
-        // Update ride status here
-        _rideStatus = 'Accepted'; 
-        _currentRide!['status'] = 'Accepted'; 
-         // You may also want to update other details if needed
-      });
-          _showRideAcceptedPopup(context);
-        }
-      } catch (e) {
-        print('Error decoding WebSocket message: $e');
+  // Listen to incoming WebSocket messages
+  _channel.stream.listen((message) {
+    print('📩 Received WebSocket message: $message');
+
+    try {
+      final data = jsonDecode(message);  // ✅ Decode only once
+      final event = data['event'];
+
+      if (event == 'rideCancelled') {
+        print('🚨 Ride has been cancelled!');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("🚨 Ride has been cancelled!"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        setState(() {
+          _rideStatus = 'Cancelled';
+          _currentRide = null;  // ✅ Reset ride data
+        });
       }
-       try {
-    final data = jsonDecode(message);  // Try to decode the message
 
-    if (data['event'] == 'driverReached') {
-      
-       setState(() {
-        // Update ride status here
-        _rideStatus = 'Driver Reached'; 
-        _currentRide!['status'] = 'Driver Reached'; 
-         // You may also want to update other details if needed
-      });
-      // Show a pop-up to notify the rider that the driver has reached
-      _showDriverReachedPopup(context);
+      if (event == 'rideCompleted') {
+        print('✅ Ride completed!');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("🎉 Your ride has been completed!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {
+          _rideStatus = 'Completed';
+          _currentRide = null;  // ✅ Reset ride data
+        });
+      }
+
+      if (event == 'rideAccepted') {
+        print("🚖 Ride Accepted Event Received! Updating UI...");
+        setState(() {
+          _rideStatus = 'Accepted';
+               _currentRide = data['ride'];
+          if (_currentRide != null) {
+            _currentRide!['status'] = 'Accepted';
+          }
+        });
+        Future.delayed(Duration(milliseconds: 300), () {
+          _showRideAcceptedPopup(context);
+        });
+      }
+
+      if (event == 'driverReached') {
+        print("🚗 Driver has reached!");
+        setState(() {
+          _rideStatus = 'Driver Reached';
+          if (_currentRide != null) {
+            _currentRide!['status'] = 'Driver Reached';
+          }
+        });
+        Future.delayed(Duration(milliseconds: 300), () {
+          _showDriverReachedPopup(context);
+        });
+      }
+
+    } catch (e) {
+      print('❌ Error decoding WebSocket message: $e');
     }
+  });
+}
 
-  } catch (e) {
-    print('Error decoding WebSocket message: $e');
-  }
-    print('Received WebSocket message: $message');  // Log the raw message
- 
-    });
-  }
   @override
   void dispose() {
     _channel.sink.close();  // Close WebSocket when the screen is disposed
@@ -304,13 +297,61 @@ Future<void> _fetchRoute(String destination) async {
       if (data.containsKey("message") && data["message"] ==  "Ride request rejected. Distance must be at least 1 km." ) {
         _showRideRejectedPopup(data["message"], data["distance"]);
       }
+      else if (data.containsKey("message") && data["message"] ==  "Ride request rejected. Distance must be at least 17.5 km." ) {
+        _showErrorPopup(data["message"], data["distance"]);
+      }
     } else {
       print("❌ Failed to create ride: ${response.body}");
     }
-
+abc
   } catch (e) {
     print("❌ Error creating ride: $e");
   }
+}
+void _showErrorPopup(String message, dynamic distance) {
+  print("🚀 Inside _showRideRejectedPopup! Message: $message, Distance: $distance");
+  double rideDistance = (distance != null) ? double.tryParse(distance.toString()) ?? 0.0 : 0.0;
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.cancel, color: Colors.red, size: 28), // ✅ Replaces missing emoji
+            SizedBox(width: 8),
+            Text(
+              "Ride Rejected",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start, // ✅ Align text properly
+          children: [
+            Text(
+              message,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
+            ),
+            SizedBox(height: 8),
+            Text(
+              "Requested Distance: ${rideDistance.toStringAsFixed(2)} km",
+              style: TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              "OK",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+            ),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 

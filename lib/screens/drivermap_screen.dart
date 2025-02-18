@@ -52,9 +52,46 @@ void _initializeWebSocket() {
   });
 }
 
-void _handleWebSocketMessage(String message) {
+void _handleWebSocketMessage(String message)async  {
   final data = jsonDecode(message);
 
+  if (data['event'] == 'newRide') {
+     if (data['event'] == 'newRide') {
+    print("🚖 New Ride Received! Adding to the available rides list.");
+    final ride = data['ride'];
+    final rideId = ride['rideId'] ?? 'Unknown Ride';
+    final rider = ride['rider'] ?? 'Unknown Rider'; 
+    final pickup = ride['pickup'] ?? {}; // Ensure this is a Map
+    final drop = ride['drop'] ?? {}; // Ensure this is a Map
+    final fare = ride['fare'] ?? '0';
+    final distance = (ride['distance'] != null) ? double.tryParse(ride['distance'].toString()) ?? 0.0 : 0.0;  // ✅ Fix distance
+    final duration = (ride['duration'] != null) ? double.tryParse(ride['duration'].toString()) ?? 0.0 : 0.0;  // ✅ Fix duration
+    final status = ride['status'] ?? 'Unknown';
+
+    print("📍 Extracted Pickup: $pickup");
+    print("📍 Extracted Drop: $drop");
+
+    // 🟢 Convert lat/lng into human-readable addresses
+    final pickupName = await _reverseGeocode(pickup['lat'], pickup['lng']);
+    final dropName = await _reverseGeocode(drop['lat'], drop['lng']);
+
+    setState(() {
+      _availableRides.add({
+        'rideId': rideId,
+        'rider': rider,
+        'pickup': pickup,
+        'drop': drop,
+        'pickupName': pickupName, // ✅ Now including human-readable name
+        'dropName': dropName, // ✅ Now including human-readable name
+        'fare': fare.toStringAsFixed(2),
+        'distance': distance,
+        'duration': duration,
+        'status': status
+      });
+    });
+     print("✅ Ride added to available rides!");
+  }
+  }
   // Handle ride accepted event
   if (data['event'] == 'rideAccepted') {
     _handleRideAccepted(data);
@@ -628,11 +665,14 @@ void dispose() {
                     ),
 
                   Text(
-                      "Fare: Rs. ${(double.parse(_currentRide!['fare'].toString())).toStringAsFixed(2)}"),
+                      "Fare: Rs. ${( _currentRide!['fare'] != null ) ? double.tryParse(_currentRide!['fare'].toString())?.toStringAsFixed(2) ?? '0.00' : '0.00'}",
+                  ),
                   Text(
-                      "Distance: ${_currentRide!['distance'].toStringAsFixed(2)} km"),
+                      "Distance: ${( _currentRide!['distance'] != null ) ? double.tryParse(_currentRide!['distance'].toString())?.toStringAsFixed(2) ?? '0.00' : '0.00'} km",
+                  ),
                   Text(
-                      "Duration: ${_currentRide!['duration'].toStringAsFixed(2)} min"),
+                      "Duration: ${( _currentRide!['duration'] != null ) ? double.tryParse(_currentRide!['duration'].toString())?.toStringAsFixed(2) ?? '0.00' : '0.00'} min",
+                  ),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
