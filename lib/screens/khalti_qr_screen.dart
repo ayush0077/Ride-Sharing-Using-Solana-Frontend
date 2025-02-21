@@ -35,7 +35,7 @@ class KhaltiQRScreen extends StatelessWidget {
                   children: [
                     // QR Code image for Khalti
                     Image.asset(
-                      '/mnt/e/Solana/Ride-Sharing-App-Solana-/flutter_ride_sharing/assets/fonts/QRkhaltI.jpg', // Update the path if needed
+                      '/mnt/e/Solana/Ride-Sharing-App-Solana-/flutter_ride_sharing/assets/fonts/QRkhalti.jpg', // Update the path if needed
                       height: 350, // Adjust the height
                       width: 350,  // Adjust the width
                       fit: BoxFit.contain,  // Display QR code properly

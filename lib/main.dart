@@ -5,7 +5,7 @@ import 'screens/drivermap_screen.dart'; // Driver Map Screen
 import 'screens/ridermap_screen.dart'; // Rider Map Screen
 import 'screens/login_screen.dart'; // Login Screen
 import 'screens/registration_screen.dart'; // Registration Screen
-
+import 'screens/welcome_screen.dart';
 void main() {
   runApp(MyApp());
 }
@@ -24,8 +24,9 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.blue,
           fontFamily: 'NotoSansDevanagari', // ✅ Set global font for the entire app
         ),
-        initialRoute: '/login', // Set initial route to login
+        initialRoute: '/welcome', // Set initial route to login
         routes: {
+          '/welcome': (context)=>  WelcomeScreen(),
           '/login': (context) => const LoginScreen(),
           '/register': (context) => const RegistrationScreen(),
           '/driverMap': (context) => const DriverMapScreen(),

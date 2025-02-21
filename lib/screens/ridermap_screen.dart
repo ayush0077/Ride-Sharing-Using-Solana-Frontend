@@ -303,7 +303,7 @@ Future<void> _fetchRoute(String destination) async {
     } else {
       print("❌ Failed to create ride: ${response.body}");
     }
-abcde
+
   } catch (e) {
     print("❌ Error creating ride: $e");
   }

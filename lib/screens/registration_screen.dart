@@ -1,6 +1,7 @@
+import 'dart:ui'; // ✅ Import for BackdropFilter
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For input formatting
-import '../services/api_service.dart'; // Import ApiService
+import 'package:flutter/services.dart';
+import '../services/api_service.dart';
 import '../services/local_storage.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -33,7 +34,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
-    // Validate Email format
     if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)) {
       _showErrorDialog("Please enter a valid email address.");
       return;
@@ -58,7 +58,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       final response = await apiService.post('/register', body);
       print("Registration successful: $response");
       await savePublicKeyAndUserType(response['publicKey'], userType);
-      Navigator.pop(context); // Go back to the previous screen
+      Navigator.pop(context);
     } catch (error) {
       print("Registration failed: $error");
       _showErrorDialog("Registration failed. Please try again.");
@@ -84,139 +84,153 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Register"),
-        backgroundColor: Colors.green, // Green background like the reference image
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 30.0),
-        child: Center(
-          child: Container(
-            width: 350, // Form width similar to the reference
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.3),
-                  spreadRadius: 3,
-                  blurRadius: 6,
-                  offset: Offset(0, 3), // Shadow position
-                ),
-              ],
+      body: Stack(
+        children: [
+          // Background Image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/fonts/ride.jpg',
+              fit: BoxFit.cover,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Register as:",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 10),
-                  Center(  // Added Center widget to make DropdownButton centered
+          ),
+          // Semi-transparent overlay
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.3),
+            ),
+          ),
+
+          // Transparent Registration Box
+          Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Container(
+                      width: 350,
+                      padding: EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12), 
-                        border: Border.all(color: Colors.blue.shade400), // Light blue border similar to TextField
-                        color: Colors.blue.shade50, // Background color matching TextField
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.3)),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 10), 
-                      child: DropdownButton<String>(
-                        value: userType,
-                        onChanged: (String? value) {
-                          setState(() {
-                            userType = value!;
-                          });
-                        },
-                        isExpanded: false, // Non full width for dropdown
-                        iconEnabledColor: Colors.blueAccent,
-                        style: TextStyle(color: Colors.black),
-                        underline: Container(),
-                        items: const [
-                          DropdownMenuItem(value: "Rider", child: Text("Rider")),
-                          DropdownMenuItem(value: "Driver", child: Text("Driver")),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Register as:",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // User Type Dropdown
+                          Center(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white70),
+                                color: Colors.white.withOpacity(0.1),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 10),
+                              child: DropdownButton<String>(
+                                value: userType,
+                                onChanged: (String? value) {
+                                  setState(() {
+                                    userType = value!;
+                                  });
+                                },
+                                isExpanded: false,
+                                iconEnabledColor: Colors.white,
+                                dropdownColor: Colors.black87,
+                                style: TextStyle(color: Colors.white),
+                                underline: Container(),
+                                items: const [
+                                  DropdownMenuItem(value: "Rider", child: Text("Rider", style: TextStyle(color: Colors.white))),
+                                  DropdownMenuItem(value: "Driver", child: Text("Driver", style: TextStyle(color: Colors.white))),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          _buildTextField(_nameController, "Name", Icons.person),
+                          const SizedBox(height: 12),
+                          _buildTextField(_contactController, "Contact", Icons.phone),
+                          const SizedBox(height: 12),
+                          _buildTextField(_passwordController, "Password", Icons.lock, obscureText: true),
+                          const SizedBox(height: 12),
+                          _buildTextField(_emailController, "Email", Icons.email),
+                          const SizedBox(height: 12),
+
+                          if (userType == 'Driver') ...[
+                            _buildTextField(_bikeNumberController, "Bike Number", Icons.motorcycle),
+                            const SizedBox(height: 12),
+                            _buildTextField(_licenseNumberController, "License Number", Icons.card_membership),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // Back Button and Register Button
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Back Button
+                              IconButton(
+                                icon: Icon(Icons.arrow_back, color: Colors.white),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                              ),
+                              const SizedBox(width: 10),
+
+                              // Register Now Button
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: _register,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                                    textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
+                                  child: const Text("Register Now"),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  _buildTextField(_nameController, "Name", Icons.person),
-                  const SizedBox(height: 12),
-                  _buildContactField(),  // Using a custom function for phone validation
-                  const SizedBox(height: 12),
-                  _buildTextField(_passwordController, "Password", Icons.lock, obscureText: true),
-                  const SizedBox(height: 12),
-                  _buildTextField(_emailController, "Email", Icons.email),
-                  const SizedBox(height: 12),
-                  if (userType == 'Driver') ...[
-                    _buildTextField(_bikeNumberController, "Bike Number", Icons.motorcycle),
-                    const SizedBox(height: 12),
-                    _buildTextField(_licenseNumberController, "License Number", Icons.card_membership),
-                    const SizedBox(height: 20),
-                  ],
-                  Center(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green, // Green button
-                        foregroundColor: Colors.white, // White text
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      onPressed: _register,
-                      child: const Text("Register Now"),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // Custom Contact Field builder for phone number validation
-  Widget _buildContactField() {
-    return TextField(
-      controller: _contactController,
-      keyboardType: TextInputType.phone,
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,  // Only digits are allowed
-      ],
-      decoration: InputDecoration(
-        prefixIcon: Icon(Icons.phone, color: Colors.blueAccent),
-        labelText: "Contact",
-        labelStyle: const TextStyle(color: Colors.blueAccent),
-        filled: true,
-        fillColor: Colors.blue.shade50,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.blue.shade400),
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-      ),
-    );
-  }
-
-  // Custom TextField builder for DRY code
+  // Custom TextField builder
   Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool obscureText = false}) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
+      style: TextStyle(color: Colors.white),
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.blueAccent),
+        prefixIcon: Icon(icon, color: Colors.white),
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.blueAccent),
+        labelStyle: const TextStyle(color: Colors.white70),
         filled: true,
-        fillColor: Colors.blue.shade50,
+        fillColor: Colors.white.withOpacity(0.1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.blue.shade400),
+          borderSide: BorderSide(color: Colors.white70),
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
       ),
