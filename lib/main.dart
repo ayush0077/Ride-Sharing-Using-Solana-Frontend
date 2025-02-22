@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.blue,
           fontFamily: 'NotoSansDevanagari', // ✅ Set global font for the entire app
         ),
-        initialRoute: '/welcome', // Set initial route to login
+        initialRoute: '/login', // Set initial route to login
         routes: {
           '/welcome': (context)=>  WelcomeScreen(),
           '/login': (context) => const LoginScreen(),

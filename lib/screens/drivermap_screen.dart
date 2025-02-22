@@ -30,6 +30,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   String? _previousRideStatus; // Driver's public key
   LatLng _fixedPickupLocation = LatLng(27.7120, 85.3100);
   WebSocketChannel? _channel; // Add this to manage the WebSocket connection
+List<LatLng> _routeCoordinates = []; 
+bool _hasDriverReached = false; // Flag to check if the driver has reached
+bool _hasAcceptedRide = false;
+LatLng _dropLocation = LatLng(0, 0);  // Default value (will be updated after driver reaches)
 
 @override
 void initState() {
@@ -262,8 +266,11 @@ void _handleRideStatusChanged(Map<String, dynamic> data) {
           _currentRide =
               _availableRides.firstWhere((ride) => ride['rideId'] == rideId);
           _availableRides.removeWhere((ride) => ride['rideId'] == rideId);
+          _hasAcceptedRide = true;
         });
               // Send WebSocket message about the ride acceptance
+      
+
       if (_channel != null) {
         _channel!.sink.add(jsonEncode({
           'event': 'rideAccepted',
@@ -281,7 +288,8 @@ void _handleRideStatusChanged(Map<String, dynamic> data) {
           _fixedPickupLocation =
               pickupLatLng; // Update the fixed pickup location
         });
-
+        // Fetch and show the route from the driver's current location to the pickup location
+      _fetchRouteToPickup(pickupLatLng);
         print("✅ Ride accepted successfully and pickup location updated!");
       } else {
         print("❌ Error accepting ride: ${response.body}");
@@ -294,6 +302,30 @@ void _handleRideStatusChanged(Map<String, dynamic> data) {
 void dispose() {
   super.dispose();
   _channel?.sink.close();  // Close the WebSocket connection
+}
+Future<void> _fetchRouteToPickup(LatLng pickupLatLng) async {
+  try {
+    final routeUrl = Uri.parse(
+      "https://router.project-osrm.org/route/v1/driving/${_currentLocation.longitude},${_currentLocation.latitude};${pickupLatLng.longitude},${pickupLatLng.latitude}?overview=full&geometries=geojson"
+    );
+
+    final routeResponse = await http.get(routeUrl);
+
+    if (routeResponse.statusCode == 200) {
+      final data = jsonDecode(routeResponse.body);
+      final List coordinates = data['routes'][0]['geometry']['coordinates'];
+
+      setState(() {
+        _routeCoordinates = coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+      });
+
+      print("✅ Route to pickup fetched successfully!");
+    } else {
+      print("❌ Error fetching route to pickup: ${routeResponse.body}");
+    }
+  } catch (e) {
+    print("❌ Error fetching route: $e");
+  }
 }
   Future<LatLng> _getLatLngFromAddress(String address) async {
     try {
@@ -463,36 +495,89 @@ void dispose() {
   }
 
   /// Mark the driver as "Reached" at the destination.
-  Future<void> _markAsReached() async {
-    if (_currentRide == null) {
-      print("❌ ERROR: No active ride to update.");
-      return;
-    }
-
-    try {
-      final url = Uri.parse("${backendUrl}mark-reached");
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "rideId": _currentRide!['rideId'],
-          "driverPublicKey": _driverPublicKey,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          // Update the current ride status to "Driver Reached"
-          _currentRide!['status'] = 'Driver Reached';
-        });
-        print("✅ Driver status updated to 'Driver Reached'");
-      } else {
-        print("❌ Error marking ride as 'Reached': ${response.body}");
-      }
-    } catch (e) {
-      print("❌ Error updating driver status: $e");
-    }
+Future<void> _markAsReached() async {
+  if (_currentRide == null) {
+    print("❌ ERROR: No active ride to update.");
+    return;
   }
+
+  try {
+    // Fetch the pickup and drop addresses
+    String pickupAddress = _currentRide!['pickupName'];
+    String dropAddress = _currentRide!['dropName'];
+
+    // Get the pickup and drop LatLng coordinates
+    LatLng pickupLatLng = await _getLatLngFromAddress(pickupAddress);
+    LatLng dropLatLng = await _getLatLngFromAddress(dropAddress);
+
+    setState(() {
+      _currentLocation = pickupLatLng;  // Set driver's location to pickup address
+      _hasDriverReached = true;  // Set the flag to true (route disappears)
+       _dropLocation = dropLatLng; // Store the drop location for the marker
+      
+    });
+
+    // Send WebSocket message about the driver's arrival
+    if (_channel != null) {
+      _channel!.sink.add(jsonEncode({
+        'event': 'driverReached',
+        'rideId': _currentRide!['rideId'],
+        'driverId': _driverPublicKey,
+      }));
+    }
+
+    // Fetch the route from the pickup to the drop location
+    await _fetchRouteFromPickupToDrop(pickupLatLng, dropLatLng);
+
+    // Send request to backend to mark driver as "Reached"
+    final url = Uri.parse("${backendUrl}mark-reached");
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "rideId": _currentRide!['rideId'],
+        "driverPublicKey": _driverPublicKey,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _currentRide!['status'] = 'Driver Reached'; // Update ride status
+      });
+      print("✅ Driver status updated to 'Driver Reached'");
+    } else {
+      print("❌ Error marking ride as 'Reached': ${response.body}");
+    }
+  } catch (e) {
+    print("❌ Error updating driver location: $e");
+  }
+}
+
+Future<void> _fetchRouteFromPickupToDrop(LatLng pickupLatLng, LatLng dropLatLng) async {
+  try {
+    final routeUrl = Uri.parse(
+      "https://router.project-osrm.org/route/v1/driving/${pickupLatLng.longitude},${pickupLatLng.latitude};${dropLatLng.longitude},${dropLatLng.latitude}?overview=full&geometries=geojson"
+    );
+
+    final routeResponse = await http.get(routeUrl);
+
+    if (routeResponse.statusCode == 200) {
+      final data = jsonDecode(routeResponse.body);
+      final List coordinates = data['routes'][0]['geometry']['coordinates'];
+
+      setState(() {
+        _routeCoordinates = coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+      });
+
+      print("✅ Route from pickup to drop fetched successfully!");
+    } else {
+      print("❌ Error fetching route from pickup to drop: ${routeResponse.body}");
+    }
+  } catch (e) {
+    print("❌ Error fetching route from pickup to drop: $e");
+  }
+}
+
 
   Future<String> _getTimeToReach(LatLng destination) async {
     try {
@@ -760,6 +845,29 @@ void dispose() {
                       "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                   subdomains: ['a', 'b', 'c'],
                 ),
+                // Conditionally render the polyline
+    if (_hasAcceptedRide && !_hasDriverReached)
+      PolylineLayer(
+        polylines: [
+          Polyline(
+            points: _routeCoordinates,  // Use the route coordinates here
+            strokeWidth: 4.0,
+            color: Colors.blue, // Blue route color
+          ),
+        ],
+      ),
+         if (_hasDriverReached)
+      PolylineLayer(
+        polylines: [
+          Polyline(
+            points: _routeCoordinates,  // Use the route coordinates from pickup to drop
+            strokeWidth: 4.0,
+            color: Colors.red, 
+             // Route color
+          ),
+        ],
+      ),        // Add polyline layer to show the route
+
                 MarkerLayer(
                   markers: [
                     Marker(
@@ -782,6 +890,28 @@ void dispose() {
                             color: Colors.white, size: 30),
                       ),
                     ),
+        if (!_hasDriverReached)              // Pickup location (Passenger)
+        Marker(
+          width: 80.0,
+          height: 80.0,
+          point: _fixedPickupLocation,  // Pickup location
+      builder: (ctx) => Icon(
+        Icons.person,  // This is the person icon
+        color: const Color.fromARGB(255, 243, 65, 33),  // Customize the color to fit your UI
+        size: 40.0,  // Adjust size as needed
+      ),
+        ),
+         if (_hasDriverReached)
+          Marker(
+            width: 80.0,
+            height: 80.0,
+            point: _dropLocation,  // Drop location
+            builder: (ctx) => Icon(
+              Icons.location_on,  // Drop location icon
+              color: Colors.red,   // Red for the destination
+              size: 40.0,
+            ),
+          ),
                   ],
                 ),
               ],

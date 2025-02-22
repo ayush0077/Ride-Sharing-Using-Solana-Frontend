@@ -922,7 +922,7 @@ if (_isDestinationFocused && _destinationSuggestions.isNotEmpty)
             width: 50,
             height: 50,
             builder: (ctx) => const Icon(
-              Icons.location_pin,
+              Icons.man,
               color: Colors.blue,
               size: 40,
             ),
