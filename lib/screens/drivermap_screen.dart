@@ -9,6 +9,7 @@ import '../services/local_storage.dart'; // For SharedPreferences
 import 'dart:async';
 import 'PaymentScreen.dart'; // ✅ Import the PaymentScreen file
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:math';
 
 
 
@@ -21,8 +22,7 @@ class DriverMapScreen extends StatefulWidget {
 
 class _DriverMapScreenState extends State<DriverMapScreen> {
   final MapController _mapController = MapController();
-  LatLng _currentLocation =
-      LatLng(27.695585080429666, 85.2973644247388); // Default: Kathmandu
+  LatLng _currentLocation =LatLng(27.695585080429666, 85.2973644247388); // Default: Kathmandu
   List<Map<String, dynamic>> _availableRides = []; // Ride requests
   Map<String, dynamic>? _currentRide; // Accepted ride details
   final String backendUrl = "http://localhost:3000/"; // Backend URL
@@ -34,6 +34,8 @@ List<LatLng> _routeCoordinates = [];
 bool _hasDriverReached = false; // Flag to check if the driver has reached
 bool _hasAcceptedRide = false;
 LatLng _dropLocation = LatLng(0, 0);  // Default value (will be updated after driver reaches)
+bool _isMoving = false;
+Timer? _movementTimer;
 
 @override
 void initState() {
@@ -57,6 +59,9 @@ void _initializeWebSocket() {
 }
 
 void _handleWebSocketMessage(String message)async  {
+   if (message.startsWith("Broadcast:")) {
+      message = message.replaceFirst("Broadcast: ", "");
+    }
   final data = jsonDecode(message);
 
   if (data['event'] == 'newRide') {
@@ -277,6 +282,7 @@ void _handleRideStatusChanged(Map<String, dynamic> data) {
           'ride': _currentRide,  // Ensure _currentRide is not null
         }));
       }
+      
 
         // Now update the fixed pickup location based on the pickup address
         String pickupAddress =
@@ -291,6 +297,8 @@ void _handleRideStatusChanged(Map<String, dynamic> data) {
         // Fetch and show the route from the driver's current location to the pickup location
       _fetchRouteToPickup(pickupLatLng);
         print("✅ Ride accepted successfully and pickup location updated!");
+        _startMovingToPickup();
+
       } else {
         print("❌ Error accepting ride: ${response.body}");
       }
@@ -602,6 +610,70 @@ Future<void> _fetchRouteFromPickupToDrop(LatLng pickupLatLng, LatLng dropLatLng)
       return "Error fetching time";
     }
   }
+void _startMovingToPickup() {
+  if (_isMoving) return; // Prevent multiple timers
+
+  _isMoving = true;
+  _movementTimer = Timer.periodic(Duration(seconds: 2), (timer) {
+    if (_currentRide == null) {
+      timer.cancel();
+      _isMoving = false;
+      return;
+    }
+
+    double pickupLat = _fixedPickupLocation.latitude;
+    double pickupLng = _fixedPickupLocation.longitude;
+
+    // ✅ Move 5% closer to pickup each update
+    _currentLocation = LatLng(
+      _currentLocation.latitude + (pickupLat - _currentLocation.latitude) * 0.05,
+      _currentLocation.longitude + (pickupLng - _currentLocation.longitude) * 0.05,
+    );
+
+    setState(() {});
+
+    // ✅ Send new location update to WebSocket
+    _sendLocationToServer(_currentLocation.latitude, _currentLocation.longitude);
+
+    // ✅ Stop when close to pickup (within 10 meters)
+    if (_calculateDistance(_currentLocation.latitude, _currentLocation.longitude, pickupLat, pickupLng) < 0.01) {
+      timer.cancel();
+      _isMoving = false;
+      print("✅ Driver has reached pickup location.");
+      _notifyRiderDriverArrived();
+    }
+  });
+}
+void _sendLocationToServer(double lat, double lng) {
+  if (_channel != null) {
+    Map<String, dynamic> locationData = {
+      "event": "driverLocationUpdate",
+      "driverId": _driverPublicKey,
+      "lat": lat,
+      "lng": lng
+    };
+    _channel!.sink.add(jsonEncode(locationData));
+    print("📡 Sent location update: $locationData");
+  }
+}
+void _notifyRiderDriverArrived() {
+  Map<String, dynamic> arrivalData = {
+    "event": "driverReached",
+    "driverId": _driverPublicKey,
+  };
+  _channel!.sink.add(jsonEncode(arrivalData));
+  print("🚖 Driver has arrived at the pickup location!");
+}
+double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  const double R = 6371; // Earth radius in km
+  double dLat = (lat2 - lat1) * (pi / 180);
+  double dLon = (lon2 - lon1) * (pi / 180);
+  double a = sin(dLat / 2) * sin(dLat / 2) +
+      cos(lat1 * (pi / 180)) * cos(lat2 * (pi / 180)) *
+          sin(dLon / 2) * sin(dLon / 2);
+  double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+  return R * c; // Distance in km
+}
 
   @override
   Widget build(BuildContext context) {
@@ -618,7 +690,7 @@ Future<void> _fetchRouteFromPickupToDrop(LatLng pickupLatLng, LatLng dropLatLng)
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.blueAccent.shade700, Colors.blue.shade500],
+              colors: [const Color.fromARGB(255, 132, 15, 228), Colors.blue.shade600],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

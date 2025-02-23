@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../services/local_storage.dart'; // For loading public key and user type
 import 'dart:async';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:math';
 
 class RiderMapScreen extends StatefulWidget {
   const RiderMapScreen({Key? key}) : super(key: key);
@@ -31,9 +32,10 @@ bool _isDestinationFocused = false; // Add this flag
 String? _rideStatus; // Stores the ride status
 LatLng? _driverLocation = LatLng(27.695558080429666, 85.2973644247388); // Manually set
 String? _driver;
-
+Map<String, LatLng> _driverLocations = {}; // Store driver locations
   // ✅ Store last known ride status
-
+bool _isRideAcceptedPopupShown = false;
+bool _isDriverReachedPopupShown = false; // ✅ Prevent duplicate "Driver Reached" popups
 
 final LatLngBounds _kathmanduBounds = LatLngBounds(
   LatLng(27.55, 85.15), // Southwest boundary
@@ -54,7 +56,8 @@ void initState() {
   super.initState();
   _loadPublicKey(); // Load the rider's public key dynamically
   _getCurrentLocation();
-
+ 
+  
   _channel = WebSocketChannel.connect(
     Uri.parse('ws://localhost:3000'), // Replace with your WebSocket server URL
   );
@@ -64,6 +67,9 @@ void initState() {
     print('📩 Received WebSocket message: $message');
 
     try {
+          if (message.startsWith("Broadcast:")) {
+      message = message.replaceFirst("Broadcast: ", "");
+    }
       final data = jsonDecode(message);  // ✅ Decode only once
       final event = data['event'];
 
@@ -97,7 +103,11 @@ void initState() {
       }
 
       if (event == 'rideAccepted') {
+         if (!_isRideAcceptedPopupShown) {
+          _isRideAcceptedPopupShown = true;
+         
         print("🚖 Ride Accepted Event Received! Updating UI...");
+        
         setState(() {
           _rideStatus = 'Accepted';
                _currentRide = data['ride'];
@@ -108,9 +118,11 @@ void initState() {
         Future.delayed(Duration(milliseconds: 300), () {
           _showRideAcceptedPopup(context);
         });
-      }
+      }}
 
       if (event == 'driverReached') {
+              if (!_isDriverReachedPopupShown) {  // ✅ Prevent duplicate popups
+        _isDriverReachedPopupShown  = true; 
         print("🚗 Driver has reached!");
         setState(() {
           _rideStatus = 'Driver Reached';
@@ -121,8 +133,13 @@ void initState() {
         Future.delayed(Duration(milliseconds: 300), () {
           _showDriverReachedPopup(context);
         });
-      }
-
+      }}
+if (data['event'] == 'driverLocationUpdate') {
+    setState(() {
+      _driverLocations[data['driverId']] = LatLng(data['lat'], data['lng']);
+    });
+    print("📡 Driver Location Updated on Rider UI: ${data['lat']}, ${data['lng']}");
+}
     } catch (e) {
       print('❌ Error decoding WebSocket message: $e');
     }
@@ -258,7 +275,8 @@ Future<void> _fetchRoute(String destination) async {
     print("Rider public key is not loaded.");
     return;
   }
-
+_isRideAcceptedPopupShown=false;
+_isDriverReachedPopupShown=false;
   setState(() {
     _currentRide = null;
   });
@@ -649,18 +667,29 @@ void _showDriverReachedPopup(BuildContext context) {
   );
 }
 
+
+List<Marker> _buildDriverMarkers() {
+  return _driverLocations.entries.map((entry) {
+    return Marker(
+      point: entry.value,
+      width: 40,
+      height: 40,
+      builder: (ctx) => Icon(Icons.local_taxi, color: Colors.green, size: 30),
+    );
+  }).toList();
+}
 @override
 Widget build(BuildContext context) {
   return Scaffold(
   appBar: AppBar(
   title: Text("Rider Map", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
   centerTitle: true,
-  backgroundColor: Colors.transparent,  // Makes the AppBar background transparent
+  backgroundColor: const Color.fromARGB(0, 255, 245, 245),  // Makes the AppBar background transparent
   elevation: 0,  // Removes the shadow
   flexibleSpace: Container(
     decoration: BoxDecoration(
       gradient: LinearGradient(
-        colors: [Colors.blueAccent.shade700, Colors.blue.shade600],
+        colors: [const Color.fromARGB(255, 132, 15, 228), Colors.blue.shade600],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
@@ -914,11 +943,9 @@ if (_isDestinationFocused && _destinationSuggestions.isNotEmpty)
               ),
       MarkerLayer( // Updated: Correct placement inside MarkerLayer
         markers: [if (_rideStatus == "Accepted" && _driverLocation != null)
-          Marker(
-            point: _driverLocation!,
-            builder: (ctx) => Icon(Icons.directions_car, color: Colors.green, size: 30),
-          ),
-          
+
+        
+          ..._buildDriverMarkers(),
           // 📌 Blue Pickup Marker
           Marker(
             point: _currentLocation,
@@ -930,6 +957,7 @@ if (_isDestinationFocused && _destinationSuggestions.isNotEmpty)
               size: 40,
             ),
           ),
+          
           // 📌
     // 📌 Draggable Destination (Red) Marker
           if (_destinationLocation != null) // Only add destination marker if set
