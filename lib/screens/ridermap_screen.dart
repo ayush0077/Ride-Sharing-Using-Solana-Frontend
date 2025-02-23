@@ -872,11 +872,14 @@ if (_isDestinationFocused && _destinationSuggestions.isNotEmpty)
       itemBuilder: (context, index) {
         return ListTile(
           title: Text(_destinationSuggestions[index]),
-          onTap: () {
-            _destinationController.text = _destinationSuggestions[index];
+          onTap: () async {
             setState(() {
-              _destinationSuggestions = [];
+              _destinationController.text = _destinationSuggestions[index]; // ✅ Update input field
+              _isDestinationFocused = false; // ✅ Reset focus flag
+              _destinationSuggestions = []; // ✅ Clear suggestions
             });
+
+            await _fetchRoute(_destinationController.text); // ✅ Fetch route after selecting destination
           },
         );
       },
