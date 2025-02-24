@@ -563,26 +563,43 @@ Future<void> _markAsReached() async {
 
 Future<void> _fetchRouteFromPickupToDrop(LatLng pickupLatLng, LatLng dropLatLng) async {
   try {
-    final routeUrl = Uri.parse(
-      "https://router.project-osrm.org/route/v1/driving/${pickupLatLng.longitude},${pickupLatLng.latitude};${dropLatLng.longitude},${dropLatLng.latitude}?overview=full&geometries=geojson"
+    // Send a request to the backend to fetch the route
+    final routeUrl = Uri.parse("http://localhost:3000/get-route");
+    final response = await http.post(
+      routeUrl,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "origin": {
+          "latitude": pickupLatLng.latitude,
+          "longitude": pickupLatLng.longitude
+        },
+        "destination": {
+          "latitude": dropLatLng.latitude,
+          "longitude": dropLatLng.longitude
+        }
+      }),
     );
+    print("Backend Response Status: ${response.statusCode}");
+    print("Backend Response Body: ${response.body}");
+    if (response.statusCode == 200) {
+      // Successfully received the route data
+      final data = jsonDecode(response.body);
 
-    final routeResponse = await http.get(routeUrl);
-
-    if (routeResponse.statusCode == 200) {
-      final data = jsonDecode(routeResponse.body);
-      final List coordinates = data['routes'][0]['geometry']['coordinates'];
-
-      setState(() {
-        _routeCoordinates = coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
-      });
-
-      print("✅ Route from pickup to drop fetched successfully!");
+      if (data['route'] != null && data['route'].isNotEmpty) {
+        final List coordinates = data['route'];
+        setState(() {
+          // Update the route coordinates
+          _routeCoordinates = coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+        });
+        print("✅ Route from pickup to drop fetched successfully!");
+      } else {
+        print("❌ No route data available");
+      }
     } else {
-      print("❌ Error fetching route from pickup to drop: ${routeResponse.body}");
+      print("❌ Error fetching route from backend: ${response.body}");
     }
   } catch (e) {
-    print("❌ Error fetching route from pickup to drop: $e");
+    print("❌ Error fetching route from backend: $e");
   }
 }
 
