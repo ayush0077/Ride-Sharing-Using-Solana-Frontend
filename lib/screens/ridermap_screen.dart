@@ -252,6 +252,7 @@ _isDriverReachedPopupShown=false;
         "drop": {"lat": drop.latitude, "lng": drop.longitude},
         "startTime": startTime.toIso8601String(),
         "endTime": endTime.toIso8601String(),
+       
       }),
     );
 
@@ -920,7 +921,7 @@ if (_isDestinationFocused && _destinationSuggestions.isNotEmpty)
                 subdomains: ['a', 'b', 'c'],
               ),
       MarkerLayer( // Updated: Correct placement inside MarkerLayer
-        markers: [if (_rideStatus == "Accepted" && _driverLocation != null)
+        markers: [if (_rideStatus == "Accepted" &&  _driverLocation != null)
 
         
           ..._buildDriverMarkers(),

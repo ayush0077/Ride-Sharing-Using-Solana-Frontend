@@ -627,40 +627,54 @@ Future<void> _fetchRouteFromPickupToDrop(LatLng pickupLatLng, LatLng dropLatLng)
       return "Error fetching time";
     }
   }
+  int _currentRouteIndex = 0;
 void _startMovingToPickup() {
   if (_isMoving) return; // Prevent multiple timers
 
   _isMoving = true;
   _movementTimer = Timer.periodic(Duration(seconds: 2), (timer) {
-    if (_currentRide == null) {
+    if (_currentRide == null || _routeCoordinates.isEmpty) {
       timer.cancel();
       _isMoving = false;
       return;
     }
 
-    double pickupLat = _fixedPickupLocation.latitude;
-    double pickupLng = _fixedPickupLocation.longitude;
+    // Get the next coordinate in the route
+    LatLng nextPoint = _routeCoordinates[_currentRouteIndex];
 
-    // ✅ Move 5% closer to pickup each update
-    _currentLocation = LatLng(
-      _currentLocation.latitude + (pickupLat - _currentLocation.latitude) * 0.05,
-      _currentLocation.longitude + (pickupLng - _currentLocation.longitude) * 0.05,
-    );
+    // Move towards the next coordinate on the route
+ setState(() {
+  _currentLocation = LatLng(
+    _currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 1.2,
+    _currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 1.2,
+  );
+});
 
     setState(() {});
 
-    // ✅ Send new location update to WebSocket
+    // Send new location update to WebSocket
     _sendLocationToServer(_currentLocation.latitude, _currentLocation.longitude);
 
-    // ✅ Stop when close to pickup (within 10 meters)
-    if (_calculateDistance(_currentLocation.latitude, _currentLocation.longitude, pickupLat, pickupLng) < 0.01) {
-      timer.cancel();
-      _isMoving = false;
-      print("✅ Driver has reached pickup location.");
-      _notifyRiderDriverArrived();
+    // If the driver reaches the current point, move to the next point
+    if (_calculateDistance(
+          _currentLocation.latitude, 
+          _currentLocation.longitude, 
+          nextPoint.latitude, 
+          nextPoint.longitude) < 0.01) {
+      _currentRouteIndex++; // Move to the next point on the route
+
+      // Stop the timer when the driver reaches the end of the route
+      if (_currentRouteIndex >= _routeCoordinates.length) {
+        timer.cancel();
+        _isMoving = false;
+        print("✅ Driver has reached pickup location.");
+        _notifyRiderDriverArrived();
+      }
     }
   });
+  
 }
+
 void _sendLocationToServer(double lat, double lng) {
   if (_channel != null) {
     Map<String, dynamic> locationData = {

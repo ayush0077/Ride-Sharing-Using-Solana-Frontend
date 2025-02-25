@@ -88,6 +88,7 @@ const RideSchema = new mongoose.Schema({
   endTime: Date,
   distance: Number,
   duration: Number,
+  
 });
 const Ride = mongoose.model('Ride', RideSchema);
 
@@ -387,8 +388,22 @@ app.post('/get-route', async (req, res) => {
     // Ensure the route exists in the response
     if (response.data && response.data.routes && response.data.routes.length > 0) {
       // Extract the coordinates from the OSRM response
-      const coordinates = response.data.routes[0].geometry.coordinates;
+      let coordinates = response.data.routes[0].geometry.coordinates;
+      coordinates = coordinates.map(coord => [
+        parseFloat(coord[0].toFixed(4)), // Round longitude to 3 decimal places
+        parseFloat(coord[1].toFixed(4))  // Round latitude to 3 decimal places
+      ]);
+    /*  console.log("Route coordinates:", coordinates);
 
+      const newRide = new Ride({
+        rideId: "generatedRideId", // This would come from somewhere else in your logic
+        pickup: origin,
+        drop: destination,
+        routeCoordinates: coordinates,  // Save the coordinates to the ride data
+        status: 'Requested',
+        // add other ride details here like fare, distance, etc.
+      });
+      await newRide.save();*/
       // Send back the coordinates as a list
       res.status(200).json({ route: coordinates });
     } else {
