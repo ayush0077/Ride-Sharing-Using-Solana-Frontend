@@ -36,7 +36,7 @@ bool _hasAcceptedRide = false;
 LatLng _dropLocation = LatLng(0, 0);  // Default value (will be updated after driver reaches)
 bool _isMoving = false;
 Timer? _movementTimer;
-
+bool _isRideStarted = false;
 @override
 void initState() {
   super.initState();
@@ -272,6 +272,9 @@ void _handleRideStatusChanged(Map<String, dynamic> data) {
               _availableRides.firstWhere((ride) => ride['rideId'] == rideId);
           _availableRides.removeWhere((ride) => ride['rideId'] == rideId);
           _hasAcceptedRide = true;
+          _isMoving = false; 
+                _isRideStarted = false; // Reset ride start flag
+      _hasDriverReached = false; // Reset driver reached flag
         });
               // Send WebSocket message about the ride acceptance
       
@@ -323,9 +326,11 @@ Future<void> _fetchRouteToPickup(LatLng pickupLatLng) async {
       final data = jsonDecode(routeResponse.body);
       final List coordinates = data['routes'][0]['geometry']['coordinates'];
 
-      setState(() {
-        _routeCoordinates = coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
-      });
+if (mounted) { // Check if the widget is still in the widget tree
+  setState(() {
+    _routeCoordinates = coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+  });
+}
 
       print("✅ Route to pickup fetched successfully!");
     } else {
@@ -521,9 +526,12 @@ Future<void> _markAsReached() async {
     setState(() {
       _currentLocation = pickupLatLng;  // Set driver's location to pickup address
       _hasDriverReached = true;  // Set the flag to true (route disappears)
-       _dropLocation = dropLatLng; // Store the drop location for the marker
-      
+      _dropLocation = dropLatLng; // Store the drop location for the marker
+       _isRideStarted = false; // Ensure ride hasn't started yet
     });
+
+    // Stop the movement timer (if running)
+    _movementTimer?.cancel();
 
     // Send WebSocket message about the driver's arrival
     if (_channel != null) {
@@ -560,6 +568,69 @@ Future<void> _markAsReached() async {
     print("❌ Error updating driver location: $e");
   }
 }
+void _startRide() {
+  print("🚗 Checking if ride can start. _isMoving: $_isMoving, _hasDriverReached: $_hasDriverReached");
+
+  // Reset _isMoving and _hasDriverReached to false before starting the ride
+  setState(() {
+    _isMoving = false; // Reset to allow starting a new movement
+    _hasDriverReached = false; // Reset driver reached flag
+  });
+  print("🚗 Starting the ride...");
+
+  // Start the movement timer
+  _movementTimer = Timer.periodic(Duration(seconds: 2), (timer) {
+    print("⏱ Timer ticked. Checking the next point...");
+
+    if (_currentRide == null || _routeCoordinates.isEmpty) {
+      print("❌ Ride or route coordinates are null/empty.");
+      timer.cancel();
+      setState(() {
+        _isMoving = false;
+      });
+      return;
+    }
+
+    // Get the next coordinate in the route
+    LatLng nextPoint = _routeCoordinates[_currentRouteIndex];
+    print("📍 Moving towards: $nextPoint");
+
+    // Move towards the next coordinate on the route
+    setState(() {
+      _currentLocation = LatLng(
+        _currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 1.2,
+        _currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 1.2,
+      );
+    });
+
+    print("📍 Current Location: $_currentLocation");
+
+    // Send updated location to WebSocket
+    _sendLocationToServer(_currentLocation.latitude, _currentLocation.longitude);
+
+    // If the driver reaches the current point, move to the next point
+    if (_calculateDistance(
+          _currentLocation.latitude, 
+          _currentLocation.longitude, 
+          nextPoint.latitude, 
+          nextPoint.longitude) < 0.01) {
+      print("✅ Driver reached the next point.");
+      _currentRouteIndex++; // Move to the next point on the route
+
+      // Stop the timer when the driver reaches the end of the route
+      if (_currentRouteIndex >= _routeCoordinates.length) {
+        print("✅ Driver has reached the destination.");
+        timer.cancel();
+        setState(() {
+          _isMoving = false; // End the movement when the route is completed
+        });
+        _notifyRiderDriverArrived();  // Notify the rider that the driver has reached the destination
+      }
+    }
+  });
+}
+
+
 
 Future<void> _fetchRouteFromPickupToDrop(LatLng pickupLatLng, LatLng dropLatLng) async {
   try {
@@ -629,7 +700,7 @@ Future<void> _fetchRouteFromPickupToDrop(LatLng pickupLatLng, LatLng dropLatLng)
   }
   int _currentRouteIndex = 0;
 void _startMovingToPickup() {
-  if (_isMoving) return; // Prevent multiple timers
+  if (_isMoving || _hasDriverReached) return; // Prevent movement if driver has reached
 
   _isMoving = true;
   _movementTimer = Timer.periodic(Duration(seconds: 2), (timer) {
@@ -643,12 +714,12 @@ void _startMovingToPickup() {
     LatLng nextPoint = _routeCoordinates[_currentRouteIndex];
 
     // Move towards the next coordinate on the route
- setState(() {
-  _currentLocation = LatLng(
-    _currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 1.2,
-    _currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 1.2,
-  );
-});
+    setState(() {
+      _currentLocation = LatLng(
+        _currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 1.2,
+        _currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 1.2,
+      );
+    });
 
     setState(() {});
 
@@ -672,8 +743,8 @@ void _startMovingToPickup() {
       }
     }
   });
-  
 }
+
 
 void _sendLocationToServer(double lat, double lng) {
   if (_channel != null) {
@@ -908,6 +979,7 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
                       ),
 
                       // Reached Button
+                       if (!_hasDriverReached)
                       ElevatedButton(
                         onPressed: _markAsReached,
                         style: ElevatedButton.styleFrom(
@@ -927,6 +999,22 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
                               fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
+                         // Start Ride Button (Visible after "I Have Reached" is clicked)
+    if (_hasDriverReached && !_isRideStarted)
+      ElevatedButton(
+        onPressed: _startRide,
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: Colors.blue,
+          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          elevation: 5,
+        ),
+        child: const Text(
+          "Start Ride",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
                     ],
                   ),
                 ],
