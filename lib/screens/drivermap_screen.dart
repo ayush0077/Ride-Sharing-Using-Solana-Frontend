@@ -22,7 +22,7 @@ class DriverMapScreen extends StatefulWidget {
 
 class _DriverMapScreenState extends State<DriverMapScreen> {
   final MapController _mapController = MapController();
-  LatLng _currentLocation =LatLng(27.695585080429666, 85.2973644247388); // Default: Kathmandu
+  LatLng _currentLocation =LatLng(27.690072, 85.291711); // Default: Kathmandu
   List<Map<String, dynamic>> _availableRides = []; // Ride requests
   Map<String, dynamic>? _currentRide; // Accepted ride details
   final String backendUrl = "http://localhost:3000/"; // Backend URL
@@ -37,6 +37,7 @@ LatLng _dropLocation = LatLng(0, 0);  // Default value (will be updated after dr
 bool _isMoving = false;
 Timer? _movementTimer;
 bool _isRideStarted = false;
+  bool _isHovered = false;
 @override
 void initState() {
   super.initState();
@@ -576,6 +577,13 @@ void _startRide() {
     _isMoving = false; // Reset to allow starting a new movement
     _hasDriverReached = false; // Reset driver reached flag
   });
+    if (_currentRide != null) {
+    _currentLocation = _fixedPickupLocation; // Set to the pickup location
+  }
+  if (_currentLocation != _fixedPickupLocation) {
+  // Make sure to set the location to the pickup location before starting
+  _currentLocation = _fixedPickupLocation;
+}
   print("🚗 Starting the ride...");
 
   // Start the movement timer
@@ -597,10 +605,11 @@ void _startRide() {
 
     // Move towards the next coordinate on the route
     setState(() {
-      _currentLocation = LatLng(
-        _currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 1.2,
-        _currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 1.2,
-      );
+_currentLocation = LatLng(
+  double.parse((_currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 1.2).toStringAsFixed(4)),
+  double.parse((_currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 1.2).toStringAsFixed(4)),
+);
+
     });
 
     print("📍 Current Location: $_currentLocation");

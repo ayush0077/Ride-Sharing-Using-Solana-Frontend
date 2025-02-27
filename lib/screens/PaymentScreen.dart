@@ -1,52 +1,72 @@
+import 'dart:ui'; // Import for BackdropFilter
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'WalletPaymentScreen.dart';
-
 class PaymentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "Choose Payment Method",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text("Choose Payment Method", style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.deepPurple,
       ),
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.deepPurple.shade500, Colors.purpleAccent.shade200],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          image: DecorationImage(
+            image: AssetImage('assets/fonts/ride.jpg'), // Background image
+            fit: BoxFit.cover, // Make the image cover the whole screen
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 💰 Cash Payment Button
-            AnimatedButton(
-              text: "Pay via Cash",
-              icon: Icons.attach_money,
-              color: Colors.orange,
-              onPressed: () {
-                Navigator.pop(context);
-              },
-            ),
-            SizedBox(height: 20),
+            // Transparent frosted background for buttons
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20), // Rounded corners
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0), // Frosted glass effect
+                  child: Container(
+                    width: 300,
+                    padding: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2), // Transparent box
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)), // Slight border
+                    ),
+                    child: Column(
+                      children: [
+                        // 💰 Cash Payment Button
+                        AnimatedButton(
+                          text: "Pay via Cash",
+                          icon: Icons.attach_money,
+                          color: const Color.fromARGB(255, 23, 180, 49),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                        ),
+                        SizedBox(height: 20),
 
-            // 💳 Wallet Payment Button
-            AnimatedButton(
-              text: "Pay via Wallet",
-              icon: Icons.account_balance_wallet,
-              color: Colors.blue,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => WalletPaymentScreen()),
-                );
-              },
+                        // 💳 Wallet Payment Button
+                        AnimatedButton(
+                          text: "Pay via Wallet",
+                          icon: Icons.account_balance_wallet,
+                          color: Colors.blue,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => WalletPaymentScreen()),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -91,7 +111,7 @@ class _AnimatedButtonState extends State<AnimatedButton> {
           width: 250,
           height: 60,
           decoration: BoxDecoration(
-            color: widget.color,
+            color: widget.color.withOpacity(0.8), // Background color with some transparency
             borderRadius: BorderRadius.circular(12),
             boxShadow: _isPressed
                 ? []

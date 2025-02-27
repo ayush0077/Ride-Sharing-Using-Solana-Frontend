@@ -1,3 +1,4 @@
+import 'dart:ui'; // Import for BackdropFilter
 import 'package:flutter/material.dart';
 import 'esewa_qr_screen.dart'; // Import eSewa QR Screen
 import 'khalti_qr_screen.dart'; // Import Khalti QR Screen
@@ -17,40 +18,61 @@ class WalletPaymentScreen extends StatelessWidget {
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.purple.shade700, Colors.deepPurpleAccent.shade200],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          image: DecorationImage(
+            image: AssetImage('assets/fonts/ride.jpg'), // Background image
+            fit: BoxFit.cover, // Make the image cover the whole screen
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 🟢 Pay via eSewa
-            AnimatedWalletButton(
-              text: "Pay via eSewa",
-              icon: Icons.payment,
-              color: Colors.green,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => EsewaQRScreen()),
-                );
-              },
-            ),
-            SizedBox(height: 20),
+            // Transparent frosted background for buttons
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20), // Rounded corners
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0), // Frosted glass effect
+                  child: Container(
+                    width: 300,
+                    padding: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2), // Transparent box
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)), // Slight border
+                    ),
+                    child: Column(
+                      children: [
+                        // 🟢 Pay via eSewa
+                        AnimatedWalletButton(
+                          text: "Pay via eSewa",
+                          icon: Icons.payment,
+                          color: const Color.fromARGB(255, 23, 180, 49),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => EsewaQRScreen()),
+                            );
+                          },
+                        ),
+                        SizedBox(height: 20),
 
-            // 🔵 Pay via Khalti
-            AnimatedWalletButton(
-              text: "Pay via Khalti",
-              icon: Icons.account_balance_wallet,
-              color: Colors.blue,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => KhaltiQRScreen()),
-                );
-              },
+                        // 🔵 Pay via Khalti
+                        AnimatedWalletButton(
+                          text: "Pay via Khalti",
+                          icon: Icons.account_balance_wallet,
+                          color: Colors.blue,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => KhaltiQRScreen()),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -95,7 +117,7 @@ class _AnimatedWalletButtonState extends State<AnimatedWalletButton> {
           width: 250,
           height: 60,
           decoration: BoxDecoration(
-            color: widget.color,
+            color: widget.color.withOpacity(0.8), // Background color with some transparency
             borderRadius: BorderRadius.circular(12),
             boxShadow: _isPressed
                 ? []

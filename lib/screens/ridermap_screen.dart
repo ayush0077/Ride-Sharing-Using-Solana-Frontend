@@ -137,7 +137,16 @@ void initState() {
 if (data['event'] == 'driverLocationUpdate') {
     setState(() {
       _driverLocations[data['driverId']] = LatLng(data['lat'], data['lng']);
+      
     });
+    print("📡 Driver Location Updated on Rider UI: ${data['lat']}, ${data['lng']}");
+}
+    // Move rider marker after driver reaches
+    if (data['event'] == 'driverLocationUpdate' && _rideStatus == 'Driver Reached') {
+      setState(() {
+        _driverLocations[data['driverId']] = LatLng(data['lat'], data['lng']);
+        _currentLocation = LatLng(data['lat'], data['lng']); // Update rider location when driver has reached
+      });
     print("📡 Driver Location Updated on Rider UI: ${data['lat']}, ${data['lng']}");
 }
     } catch (e) {
