@@ -37,7 +37,7 @@ LatLng _dropLocation = LatLng(0, 0);  // Default value (will be updated after dr
 bool _isMoving = false;
 Timer? _movementTimer;
 bool _isRideStarted = false;
-  bool _isHovered = false;
+ 
 @override
 void initState() {
   super.initState();
@@ -576,6 +576,7 @@ void _startRide() {
   setState(() {
     _isMoving = false; // Reset to allow starting a new movement
     _hasDriverReached = false; // Reset driver reached flag
+     _isRideStarted = true;
   });
     if (_currentRide != null) {
     _currentLocation = _fixedPickupLocation; // Set to the pickup location
@@ -921,6 +922,9 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
                             ],
                           );
                         }
+                        if (_isRideStarted) {
+  return SizedBox.shrink(); // This will hide the "Time to reach" text if the ride has started
+}
                         if (snapshot.hasData) {
                           return Text(
                             "Time to reach: ${snapshot.data}",
@@ -928,6 +932,7 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
                                 TextStyle(fontSize: 16, color: Colors.orange),
                           );
                         }
+                        
                         return Text("Time to reach: Error");
                       },
                     ),
@@ -1090,7 +1095,7 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
                             color: Colors.white, size: 30),
                       ),
                     ),
-        if (!_hasDriverReached)              // Pickup location (Passenger)
+        if (!_hasDriverReached && !_isRideStarted)              // Pickup location (Passenger)
         Marker(
           width: 80.0,
           height: 80.0,
@@ -1101,17 +1106,18 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
         size: 40.0,  // Adjust size as needed
       ),
         ),
-         if (_hasDriverReached)
-          Marker(
-            width: 80.0,
-            height: 80.0,
-            point: _dropLocation,  // Drop location
-            builder: (ctx) => Icon(
-              Icons.location_on,  // Drop location icon
-              color: Colors.red,   // Red for the destination
-              size: 40.0,
-            ),
-          ),
+ if (_hasDriverReached || _isRideStarted) // Show drop location after the ride starts or when driver reaches
+      Marker(
+        width: 80.0,
+        height: 80.0,
+        point: _dropLocation,  // Drop location
+        builder: (ctx) => Icon(
+          Icons.location_on,  // Drop location icon
+          color: Colors.red,   // Red color
+          size: 40.0,
+        ),
+      ),
+          
                   ],
                 ),
               ],
