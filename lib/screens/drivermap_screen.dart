@@ -37,7 +37,10 @@ LatLng _dropLocation = LatLng(0, 0);  // Default value (will be updated after dr
 bool _isMoving = false;
 Timer? _movementTimer;
 bool _isRideStarted = false;
- 
+ final LatLngBounds _kathmanduBounds = LatLngBounds(
+  LatLng(27.55, 85.15), // Southwest boundary
+  LatLng(27.85, 85.55), // Northeast boundary
+);
 @override
 void initState() {
   super.initState();
@@ -1041,6 +1044,7 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
             child: FlutterMap(
               mapController: _mapController,
               options: MapOptions(
+                maxBounds: _kathmanduBounds,
                 center: _currentLocation,
                 zoom: 14.0,
               ),
@@ -1055,7 +1059,7 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
       PolylineLayer(
         polylines: [
           Polyline(
-            points: _routeCoordinates,  // Use the route coordinates here
+           points: _routeCoordinates.sublist(_currentRouteIndex),  // Use the route coordinates here
             strokeWidth: 4.0,
             color: Colors.blue, // Blue route color
           ),
@@ -1095,7 +1099,8 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
                             color: Colors.white, size: 30),
                       ),
                     ),
-        if (!_hasDriverReached && !_isRideStarted)              // Pickup location (Passenger)
+     if (!_hasDriverReached && !_isRideStarted && _hasAcceptedRide)              // Pickup location (Passenger)
+        
         Marker(
           width: 80.0,
           height: 80.0,

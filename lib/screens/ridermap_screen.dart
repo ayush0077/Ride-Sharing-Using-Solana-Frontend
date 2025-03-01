@@ -341,7 +341,72 @@ void _showErrorPopup(String message, dynamic distance) {
     },
   );
 }
+Future<void> _fetchRoute(String destination) async {
+  try {
+    // Geocode the destination to get latitude and longitude
+    final geocodeUrl = Uri.parse(
+        "https://nominatim.openstreetmap.org/search?q=$destination&format=json&limit=1");
+    final geocodeResponse = await http.get(geocodeUrl);
 
+    if (geocodeResponse.statusCode == 200) {
+      final List geocodeData = jsonDecode(geocodeResponse.body);
+      if (geocodeData.isEmpty) throw Exception("Destination not found");
+
+      final destLat = double.parse(geocodeData[0]['lat']);
+      final destLon = double.parse(geocodeData[0]['lon']);
+
+      setState(() {
+        _destinationLocation = LatLng(destLat, destLon); // Store the destination location
+      });
+
+      // Fetch the route from the backend
+      final routeUrl = Uri.parse("${backendUrl}get-route"); // Backend URL
+      final routeResponse = await http.post(
+        routeUrl,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "origin": {
+            "latitude": _currentLocation.latitude,
+            "longitude": _currentLocation.longitude
+          },
+          "destination": {
+            "latitude": destLat,
+            "longitude": destLon
+          }
+        }),
+      );
+  print("Backend Response Status: ${routeResponse.statusCode}"); // Use routeResponse, not response
+print("Backend Response Body: ${routeResponse.body}"); // Use routeResponse, not response
+
+      if (routeResponse.statusCode == 200) {
+        final data = jsonDecode(routeResponse.body);
+        final List coordinates = data['route']; // Extract the route coordinates
+        setState(() {
+          _routeCoordinates =
+              coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+        });
+
+        // Reverse Geocode the destination to get the human-readable address
+        final reverseGeocodeUrl = Uri.parse(
+            "https://nominatim.openstreetmap.org/reverse?lat=$destLat&lon=$destLon&format=json");
+        final reverseResponse = await http.get(reverseGeocodeUrl);
+
+        if (reverseResponse.statusCode == 200) {
+          final reverseData = jsonDecode(reverseResponse.body);
+          setState(() {
+            _destinationController.text = reverseData['display_name'] ?? "Unknown location"; // Set address in input field
+          });
+        }
+      } else {
+        print("❌ Error fetching route from backend: ${routeResponse.body}");
+      }
+    } else {
+      throw Exception("Failed to geocode destination");
+    }
+  } catch (e) {
+    print("Error fetching route: $e");
+  }
+}
 
 
 void _showRideRejectedPopup(String message, dynamic distance) {
@@ -896,7 +961,7 @@ if (_isDestinationFocused && _destinationSuggestions.isNotEmpty)
               _destinationSuggestions = []; // ✅ Clear suggestions
             });
 
-            await _fetchRouteFromLatLng(_destinationLocation!);// ✅ Fetch route after selecting destination
+            await _fetchRoute(_destinationController.text);// ✅ Fetch route after selecting destination
           },
         );
       },
