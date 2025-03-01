@@ -36,7 +36,7 @@ Map<String, LatLng> _driverLocations = {}; // Store driver locations
   // ✅ Store last known ride status
 bool _isRideAcceptedPopupShown = false;
 bool _isDriverReachedPopupShown = false; // ✅ Prevent duplicate "Driver Reached" popups
-
+bool _isRideCancelled = false; // Flag to track if ride is cancelled
 final LatLngBounds _kathmanduBounds = LatLngBounds(
   LatLng(27.55, 85.15), // Southwest boundary
   LatLng(27.85, 85.55), // Northeast boundary
@@ -73,19 +73,24 @@ void initState() {
       final data = jsonDecode(message);  // ✅ Decode only once
       final event = data['event'];
 
-      if (event == 'rideCancelled') {
-        print('🚨 Ride has been cancelled!');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("🚨 Ride has been cancelled!"),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-        setState(() {
-          _rideStatus = 'Cancelled';
-          _currentRide = null;  // ✅ Reset ride data
-        });
+    if (event == 'rideCancelled') {
+        // Ensure that the "Ride Cancelled" snackbar is only shown once
+        if (!_isRideCancelled) {
+          print('🚨 Ride has been cancelled!');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("🚨 Ride has been cancelled!"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          
+          setState(() {
+            _rideStatus = 'Cancelled';
+            _currentRide = null;  // ✅ Reset ride data
+            _isRideCancelled = true;  // Mark that the notification has been shown
+          });
+        }
       }
 
       if (event == 'rideCompleted') {
@@ -139,6 +144,19 @@ if (data['event'] == 'driverLocationUpdate') {
       _driverLocations[data['driverId']] = LatLng(data['lat'], data['lng']);
       
     });
+      int currentRouteIndex = _routeCoordinates.indexWhere(
+        (coord) => coord.latitude == _currentLocation.latitude &&
+                  coord.longitude == _currentLocation.longitude
+      );
+
+if (currentRouteIndex >= 0) {
+        // Show the route from the current position onwards
+        setState(() {
+          _routeCoordinates = _routeCoordinates.sublist(currentRouteIndex);  // Show route from the current position onward
+        });
+      } else {
+        print('❌ Current location not found in route coordinates.');
+      }
     print("📡 Driver Location Updated on Rider UI: ${data['lat']}, ${data['lng']}");
 }
     // Move rider marker after driver reaches
@@ -573,6 +591,13 @@ Future<void> _cancelRide() async {
   if (_currentRide == null) return;
 
   try {
+    // Send WebSocket message to notify driver that ride is cancelled
+    _channel.sink.add(jsonEncode({
+      'event': 'rideCancelled',   // Event for the cancellation
+      'rideId': _currentRide!['rideId'],
+    }));
+
+    // Proceed with the cancellation request to the backend
     final url = Uri.parse("${backendUrl}cancel-ride");
     final response = await http.post(
       url,
@@ -590,13 +615,6 @@ Future<void> _cancelRide() async {
         _currentRide = null; // ✅ Reset ride data to remove 'Completed' status
       });
 
-            ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("🚨 Ride has been cancelled!"),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
     } else {
       print("❌ Failed to cancel ride: ${response.body}");
     }
@@ -604,6 +622,7 @@ Future<void> _cancelRide() async {
     print("❌ Error canceling ride: $e");
   }
 }
+
 
 Future<void> _fetchRouteFromLatLng(LatLng destination) async {
   try {

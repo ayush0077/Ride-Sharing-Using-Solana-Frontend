@@ -37,6 +37,7 @@ LatLng _dropLocation = LatLng(0, 0);  // Default value (will be updated after dr
 bool _isMoving = false;
 Timer? _movementTimer;
 bool _isRideStarted = false;
+bool _isRideCancelled = false;
  final LatLngBounds _kathmanduBounds = LatLngBounds(
   LatLng(27.55, 85.15), // Southwest boundary
   LatLng(27.85, 85.55), // Northeast boundary
@@ -114,7 +115,13 @@ void _handleWebSocketMessage(String message)async  {
   if (data['event'] == 'rideStatusChanged') {
     _handleRideStatusChanged(data);
   }
+  if(data['event']== 'rideCancelled')
+  {
+    _handleRideCancelled(data);
+  }
+  
 }
+
 
 void _handleRideAccepted(Map<String, dynamic> data) {
   // Update the available rides list and current ride
@@ -131,8 +138,31 @@ void _handleRideStatusChanged(Map<String, dynamic> data) {
       _currentRide!['status'] = data['status'];
     });
   }
+  
 }
+void _handleRideCancelled(Map<String, dynamic> data) {
+  // Only show the notification once
+  if (!_isRideCancelled) {
+    setState(() {
+      _isRideCancelled = true; // Set the flag to true after showing the notification
+    });
 
+    // Show a Snackbar on the Driver screen when the ride is cancelled
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("🚨 Ride has been cancelled!"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    // Optionally, reset the current ride and remove it from the available rides list
+    setState(() {
+      _currentRide = null; // Reset current ride
+      _availableRides.removeWhere((ride) => ride['rideId'] == data['rideId']); // Remove cancelled ride from available rides
+    });
+  }
+}
 
   /// Load the driver's public key from local storage
   Future<void> _loadPublicKey() async {
@@ -610,8 +640,8 @@ void _startRide() {
     // Move towards the next coordinate on the route
     setState(() {
 _currentLocation = LatLng(
-  double.parse((_currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 1.2).toStringAsFixed(4)),
-  double.parse((_currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 1.2).toStringAsFixed(4)),
+  double.parse((_currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 0.8).toStringAsFixed(4)),
+  double.parse((_currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 0.8).toStringAsFixed(4)),
 );
 
     });
@@ -729,8 +759,8 @@ void _startMovingToPickup() {
     // Move towards the next coordinate on the route
     setState(() {
       _currentLocation = LatLng(
-        _currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 1.2,
-        _currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 1.2,
+        _currentLocation.latitude + (nextPoint.latitude - _currentLocation.latitude) * 0.8,
+        _currentLocation.longitude + (nextPoint.longitude - _currentLocation.longitude) * 0.8,
       );
     });
 
