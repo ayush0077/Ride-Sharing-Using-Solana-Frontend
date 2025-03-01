@@ -118,6 +118,7 @@ void _handleWebSocketMessage(String message)async  {
   if(data['event']== 'rideCancelled')
   {
     _handleRideCancelled(data);
+    
   }
   
 }
@@ -141,29 +142,56 @@ void _handleRideStatusChanged(Map<String, dynamic> data) {
   
 }
 void _handleRideCancelled(Map<String, dynamic> data) {
-  // Only show the notification once
+  // Only show the notification once and after the ride is accepted
   if (!_isRideCancelled) {
     setState(() {
       _isRideCancelled = true; // Set the flag to true after showing the notification
     });
 
-    // Show a Snackbar on the Driver screen when the ride is cancelled
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("🚨 Ride has been cancelled!"),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ),
-    );
-
+    // Show a pop-up dialog when the ride is cancelled
+ 
     // Optionally, reset the current ride and remove it from the available rides list
     setState(() {
       _currentRide = null; // Reset current ride
       _availableRides.removeWhere((ride) => ride['rideId'] == data['rideId']); // Remove cancelled ride from available rides
     });
   }
+       if (_hasAcceptedRide) {
+    _showCancellationDialog(data);
+    
+  }
+    setState(() {
+    _isRideCancelled = false; 
+    _hasAcceptedRide = false; // Reset the flag to false after handling the cancellation
+  });
 }
-
+void _showCancellationDialog(Map<String, dynamic> data) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text("🚨 Ride Cancelled"),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("The ride has been cancelled."),
+            SizedBox(height: 10),
+            Text("Ride ID: ${data['rideId']}"),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();  // Close the dialog when the user presses "OK"
+            },
+            child: Text("OK"),
+          ),
+        ],
+      );
+    },
+  );
+}
   /// Load the driver's public key from local storage
   Future<void> _loadPublicKey() async {
     final data = await getPublicKeyAndUserType();
@@ -858,6 +886,8 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
           if (_currentRide == null)
             Expanded(
               flex: 1,
+              child: Container(
+        color: Colors.blue.withOpacity(0.2),
               child: _isLoading
                   ? Center(child: CircularProgressIndicator())
                   : _availableRides.isNotEmpty
@@ -899,178 +929,151 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
                           },
                         )
                       : const Center(child: Text("No available rides")),
+            
+            )
             ),
 
           // Accepted Ride Details
-          if (_currentRide != null)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Accepted Ride Details:",
-                    style: TextStyle(   fontFamily: 'NotoSansDevanagari',
-    fontSize: 18,
-    fontWeight: FontWeight.bold, // Ensure weight 700 is used
-    color: Colors.black,),
-                  ),
-                  Text(
-                    "Pickup: ${_currentRide!['pickupName']}",
-                    style: TextStyle(
-                      fontFamily: 'NotoSansDevanagari',
-                      fontSize: 16,
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w600, // Stronger emphasis
-                     
-                    ),
-                  ),
+if (_currentRide != null)
 
-                  Text(
-                    "Drop: ${_currentRide!['dropName']}",
-                    style: TextStyle(
-                      fontFamily: 'NotoSansDevanagari',
-                      fontSize: 16,
-                      color: Colors.black,
-                      fontWeight: FontWeight.normal,
-                      fontFeatures: [FontFeature.enable('liga')],
-                    ),
-                  ),
+  Padding(
+    padding: const EdgeInsets.all(1.0),
+    child: Container(
+      color: Colors.blue.withOpacity(0.2),
+    
 
-                  // Display Time to Reach
-                  if (_fixedPickupLocation != null)
-                    FutureBuilder<String>(
-                      future: _getTimeToReach(_fixedPickupLocation!),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Row(
-                            children: [
-                              CircularProgressIndicator(
-                                  color: Colors.blueAccent),
-                              SizedBox(width: 10),
-                              Text("Calculating time...",
-                                  style: TextStyle(
-                                      fontSize: 16, color: Colors.blue)),
-                            ],
-                          );
-                        }
-                        if (_isRideStarted) {
-  return SizedBox.shrink(); // This will hide the "Time to reach" text if the ride has started
-}
-                        if (snapshot.hasData) {
-                          return Text(
-                            "Time to reach: ${snapshot.data}",
-                            style:
-                                TextStyle(fontSize: 16, color: Colors.orange),
-                          );
-                        }
-                        
-                        return Text("Time to reach: Error");
-                      },
-                    ),
-
-                  Text(
-                      "Fare: Rs. ${( _currentRide!['fare'] != null ) ? double.tryParse(_currentRide!['fare'].toString())?.toStringAsFixed(2) ?? '0.00' : '0.00'}",
-                  ),
-                  Text(
-                      "Distance: ${( _currentRide!['distance'] != null ) ? double.tryParse(_currentRide!['distance'].toString())?.toStringAsFixed(2) ?? '0.00' : '0.00'} km",
-                  ),
-                  Text(
-                      "Duration: ${( _currentRide!['duration'] != null ) ? double.tryParse(_currentRide!['duration'].toString())?.toStringAsFixed(2) ?? '0.00' : '0.00'} min",
-                  ),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Complete Ride Button
-                      ElevatedButton(
-                        onPressed: _completeRide,
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: Colors.green, // Text color
-                          padding: EdgeInsets.symmetric(
-                              vertical: 12, horizontal: 30),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(15), // Rounded corners
-                          ),
-                          elevation: 5, // Shadow effect
-                        ),
-                        child: const Text(
-                          "Complete Ride",
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-
-                      // Cancel Ride Button
-                      ElevatedButton(
-                        onPressed: _cancelRide,
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: Colors.red, // Text color
-                          padding: EdgeInsets.symmetric(
-                              vertical: 12, horizontal: 30),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(15), // Rounded corners
-                          ),
-                          elevation: 5, // Shadow effect
-                        ),
-                        child: const Text(
-                          "Cancel Ride",
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-
-                      // Reached Button
-                       if (!_hasDriverReached)
-                      ElevatedButton(
-                        onPressed: _markAsReached,
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: Colors.blue, // Text color
-                          padding: EdgeInsets.symmetric(
-                              vertical: 12, horizontal: 30),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(15), // Rounded corners
-                          ),
-                          elevation: 5, // Shadow effect
-                        ),
-                        child: const Text(
-                          "I Have Reached",
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                         // Start Ride Button (Visible after "I Have Reached" is clicked)
-    if (_hasDriverReached && !_isRideStarted)
-      ElevatedButton(
-        onPressed: _startRide,
-        style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: Colors.blue,
-          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 30),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          elevation: 5,
-        ),
-        child: const Text(
-          "Start Ride",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-      ),
-                    ],
-                  ),
-                ],
-              ),
+       // Make the container transparent
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Accepted Ride Details:",
+            style: TextStyle(
+              fontFamily: 'NotoSansDevanagari',
+              fontSize: 18,
+              fontWeight: FontWeight.bold, // Ensure weight 700 is used
+              color: Colors.black,
             ),
+          ),
+          Text(
+            "Pickup: ${_currentRide!['pickupName']}",
+            style: TextStyle(
+              fontFamily: 'NotoSansDevanagari',
+              fontSize: 16,
+              color: Colors.black87,
+              fontWeight: FontWeight.w600, // Stronger emphasis
+            ),
+          ),
+          Text(
+            "Drop: ${_currentRide!['dropName']}",
+            style: TextStyle(
+              fontFamily: 'NotoSansDevanagari',
+              fontSize: 16,
+              color: Colors.black,
+              fontWeight: FontWeight.normal,
+              fontFeatures: [FontFeature.enable('liga')],
+            ),
+          ),
+          // Display Time to Reach
+          if (_fixedPickupLocation != null)
+            FutureBuilder<String>(
+              future: _getTimeToReach(_fixedPickupLocation!),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Row(
+                    children: [
+                      CircularProgressIndicator(color: Colors.blueAccent),
+                      SizedBox(width: 10),
+                      Text("Calculating time...", style: TextStyle(fontSize: 16, color: Colors.blue)),
+                    ],
+                  );
+                }
+                if (_isRideStarted) {
+                  return SizedBox.shrink(); // Hide "Time to reach" text if the ride has started
+                }
+                if (snapshot.hasData) {
+                  return Text(
+                    "Time to reach: ${snapshot.data}",
+                    style: TextStyle(fontSize: 16, color: Colors.orange),
+                  );
+                }
+
+                return Text("Time to reach: Error");
+              },
+            ),
+          Text(
+            "Fare: Rs. ${( _currentRide!['fare'] != null ) ? double.tryParse(_currentRide!['fare'].toString())?.toStringAsFixed(2) ?? '0.00' : '0.00'}",
+          ),
+          Text(
+            "Distance: ${( _currentRide!['distance'] != null ) ? double.tryParse(_currentRide!['distance'].toString())?.toStringAsFixed(2) ?? '0.00' : '0.00'} km",
+          ),
+          Text(
+            "Duration: ${( _currentRide!['duration'] != null ) ? double.tryParse(_currentRide!['duration'].toString())?.toStringAsFixed(2) ?? '0.00' : '0.00'} min",
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Complete Ride Button
+              ElevatedButton(
+                onPressed: _completeRide,
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.green,
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  elevation: 5,
+                ),
+                child: const Text("Complete Ride", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              // Cancel Ride Button
+              ElevatedButton(
+                onPressed: _cancelRide,
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.red,
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  elevation: 5,
+                ),
+                child: const Text("Cancel Ride", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              // Reached Button
+              if (!_hasDriverReached)
+                ElevatedButton(
+                  onPressed: _markAsReached,
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.blue,
+                    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 5,
+                  ),
+                  child: const Text("I Have Reached", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              // Start Ride Button (Visible after "I Have Reached" is clicked)
+              if (_hasDriverReached && !_isRideStarted)
+                ElevatedButton(
+                  onPressed: _startRide,
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.blue,
+                    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 5,
+                  ),
+                  child: const Text("Start Ride", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  ),
+
 
           // Map showing driver's location
           Expanded(
-            flex: 2,
+            flex: 3,
             child: FlutterMap(
               mapController: _mapController,
               options: MapOptions(

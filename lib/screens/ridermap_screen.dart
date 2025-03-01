@@ -88,9 +88,10 @@ void initState() {
           setState(() {
             _rideStatus = 'Cancelled';
             _currentRide = null;  // ✅ Reset ride data
-            _isRideCancelled = true;  // Mark that the notification has been shown
+            // Mark that the notification has been shown
           });
         }
+        _isRideCancelled = false;
       }
 
       if (event == 'rideCompleted') {
@@ -676,11 +677,22 @@ Future<void> _fetchRouteFromLatLng(LatLng destination) async {
 
 void _refreshMap() async {
   setState(() {
-    _routeCoordinates = [];  // Clear the route coordinates
-    _destinationLocation = null;  // Clear the destination marker
-    _pickupController.clear();  // Clear the pickup location
-    _destinationController.clear();  // Clear the destination input
-    _isDestinationFocused = false;  // Reset the flag to false when refreshing
+ _isRideCancelled = false;
+    _isRideAcceptedPopupShown = false;
+    _isDriverReachedPopupShown = false;
+    _rideStatus = '';  // Reset ride status
+    _currentRide = null;  // Reset current ride
+    _fare = null;  // Clear fare
+    _distance = null;  // Clear distance
+    _duration = null;  // Clear duration
+    _routeCoordinates.clear();  // Clear route coordinates
+    _destinationLocation = null;  // Reset destination marker
+    _pickupController.clear();  // Clear pickup location
+    _destinationController.clear();  // Clear destination location
+    _pickupSuggestions.clear();  // Clear suggestions
+    _destinationSuggestions.clear();  // Clear suggestions
+    _isDestinationFocused = false;  // Reset flag
+ 
   });
 
   // Reload the current location and reset any other data
