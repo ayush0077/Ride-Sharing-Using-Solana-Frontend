@@ -979,6 +979,9 @@ if (_currentRide != null)
             FutureBuilder<String>(
               future: _getTimeToReach(_fixedPickupLocation!),
               builder: (context, snapshot) {
+                   if (_isRideStarted) {
+        return SizedBox.shrink(); // Hide the time calculation message after the ride starts
+      }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Row(
                     children: [
@@ -988,9 +991,7 @@ if (_currentRide != null)
                     ],
                   );
                 }
-                if (_isRideStarted) {
-                  return SizedBox.shrink(); // Hide "Time to reach" text if the ride has started
-                }
+
                 if (snapshot.hasData) {
                   return Text(
                     "Time to reach: ${snapshot.data}",
@@ -1053,7 +1054,12 @@ if (_currentRide != null)
               // Start Ride Button (Visible after "I Have Reached" is clicked)
               if (_hasDriverReached && !_isRideStarted)
                 ElevatedButton(
-                  onPressed: _startRide,
+                  onPressed: () {
+      setState(() {
+        _isRideStarted = true;  // Update the flag to hide "Calculating time..."
+      });
+      _startRide();  // Start the ride
+    },
                   style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.white,
                     backgroundColor: Colors.blue,
