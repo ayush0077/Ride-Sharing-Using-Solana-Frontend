@@ -79,7 +79,7 @@ void initState() {
           print('🚨 Ride has been cancelled!');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("🚨 Ride has been cancelled!"),
+              content: Text("Ride has been cancelled!"),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 3),
             ),
@@ -98,7 +98,7 @@ void initState() {
         print('✅ Ride completed!');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("🎉 Your ride has been completed!"),
+            content: Text("Your ride has been completed!"),
             backgroundColor: Colors.green,
           ),
         );
@@ -557,23 +557,53 @@ void _showRideRejectedPopup(String message, dynamic distance) {
   }
 }*/
 
-void _showRideAcceptedPopup(BuildContext context) { // ✅ Accept context
+void _showRideAcceptedPopup(BuildContext context) {
   showDialog(
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: const Text("Ride Accepted!"),
-        content: const Text("A driver has accepted your ride request. Get ready!"),
+        title: Row(
+          children: [
+            Icon(
+              Icons.check_circle,  // ✅ Green check icon
+              color: Colors.green,
+              size: 28,
+            ),
+            SizedBox(width: 8),  // Space between icon and text
+            Text(
+              "Ride Accepted!",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black, // Title text color
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          "A driver has accepted your ride request. Get ready!",
+          style: TextStyle(fontSize: 16),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("OK"),
+            onPressed: () {
+              Navigator.of(context).pop();  // Close the dialog
+            },
+            child: Text(
+              "OK",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue, // Button color
+              ),
+            ),
           ),
         ],
       );
     },
   );
 }
+
 Future<void> _logout() async {
   try {
     await clearLocalStorage(); // ✅ Clears stored public key and user type
@@ -738,18 +768,48 @@ void _showDriverReachedPopup(BuildContext context) {
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: const Text("Driver Has Reached!"),
-        content: const Text("The driver has arrived at your location. Please meet them."),
+        title: Row(
+          children: [
+            Icon(
+              Icons.directions_car,  // 🚗 Car icon
+              color: Colors.blue,  // Blue for a neutral notification
+              size: 28,
+            ),
+            SizedBox(width: 8),  // Space between icon and text
+            Text(
+              "Driver Has Reached!",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black, // Title text color
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          "The driver has arrived at your location. Please meet them.",
+          style: TextStyle(fontSize: 16),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("OK"),
+            onPressed: () {
+              Navigator.of(context).pop();  // Close the dialog
+            },
+            child: Text(
+              "OK",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue, // Button color
+              ),
+            ),
           ),
         ],
       );
     },
   );
 }
+
 
 
 List<Marker> _buildDriverMarkers() {
@@ -766,9 +826,13 @@ List<Marker> _buildDriverMarkers() {
 Widget build(BuildContext context) {
   return Scaffold(
   appBar: AppBar(
-  title: Text("Rider Map", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+   title: const Text("Rider Map",
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white)),
   centerTitle: true,
-  backgroundColor: const Color.fromARGB(0, 255, 245, 245),  // Makes the AppBar background transparent
+   // Makes the AppBar background transparent
   elevation: 0,  // Removes the shadow
   flexibleSpace: Container(
     decoration: BoxDecoration(
@@ -794,21 +858,25 @@ Widget build(BuildContext context) {
 
     body: Column(
       children: [
+        
         if (_currentRide != null && _currentRide!["status"] != "Completed")
         Padding(
+          
   padding: const EdgeInsets.all(8.0),
   child: Card(
+     
     elevation: 8,  // Added shadow for a more prominent look
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(15),  // Rounded corners for the card
     ),
+    color: const Color.fromARGB(255, 185, 224, 252),
     child: Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,  // Aligns the text to the start
         children: [
           Text(
-            "🚖 Ride Status: ${_currentRide!["status"]}",
+            "Ride Status: ${_currentRide!["status"]}",
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -838,7 +906,7 @@ Widget build(BuildContext context) {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,  // Red button for cancel
-                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),  // Custom padding
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),  // Custom padding
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),  // Rounded corners for the button
                 ),
@@ -846,7 +914,7 @@ Widget build(BuildContext context) {
               ),
               child: Text(
                 "Cancel Ride",
-                style: TextStyle(color: Colors.white, fontSize: 18),
+                style: TextStyle(color: Colors.white, fontSize: 15),
               ),
             ),
         ],
@@ -912,9 +980,12 @@ Widget build(BuildContext context) {
 
 
        if (_fare != null && _distance != null && _duration != null)
+       
   Padding(
+    
     padding: const EdgeInsets.all(8.0),
     child: Card(
+      color: const Color.fromARGB(255, 185, 224, 252),
       elevation: 8,  // Increased elevation for more prominent shadow
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),  // Rounded corners
@@ -1095,6 +1166,13 @@ if (_isDestinationFocused && _destinationSuggestions.isNotEmpty)
                 DateTime.now().add(const Duration(minutes: 30)),
               );
             },
+       style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.blue,
+                    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 5,
+                  ),
             child: const Text("Create Ride"),
           ),
         ),

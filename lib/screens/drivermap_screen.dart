@@ -170,28 +170,59 @@ void _showCancellationDialog(Map<String, dynamic> data) {
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: Text("🚨 Ride Cancelled"),
+        title: Row(
+          children: [
+            Icon(
+              Icons.cancel,  // ❌ Red Cancel Icon
+              color: Colors.red,
+              size: 28,
+            ),
+            SizedBox(width: 8),  // Space between icon and text
+            Text(
+              "Ride Cancelled",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black, // Title text color
+              ),
+            ),
+          ],
+        ),
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("The ride has been cancelled."),
+            Text(
+              "The ride has been cancelled.",
+              style: TextStyle(fontSize: 16),
+            ),
             SizedBox(height: 10),
-            Text("Ride ID: ${data['rideId']}"),
+            Text(
+              "Ride ID: ${data['rideId']}",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();  // Close the dialog when the user presses "OK"
+              Navigator.of(context).pop();  // Close the dialog
             },
-            child: Text("OK"),
+            child: Text(
+              "OK",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue, // Button color
+              ),
+            ),
           ),
         ],
       );
     },
   );
 }
+
   /// Load the driver's public key from local storage
   Future<void> _loadPublicKey() async {
     final data = await getPublicKeyAndUserType();
@@ -792,7 +823,7 @@ void _startMovingToPickup() {
       );
     });
 
-    setState(() {});
+   
 
     // Send new location update to WebSocket
     _sendLocationToServer(_currentLocation.latitude, _currentLocation.longitude);
@@ -935,13 +966,10 @@ double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
 
           // Accepted Ride Details
 if (_currentRide != null)
-
   Padding(
     padding: const EdgeInsets.all(1.0),
     child: Container(
       color: Colors.blue.withOpacity(0.2),
-    
-
        // Make the container transparent
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
