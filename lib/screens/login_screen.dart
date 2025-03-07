@@ -103,157 +103,157 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      
-      body: Stack(
-        children: [
-          // Background Image
-          Positioned.fill(
-            child: Image.asset(
-              'assets/fonts/ride.jpg',
-              fit: BoxFit.cover,
-            ),
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Stack(
+      children: [
+        // Background Image
+        Positioned.fill(
+          child: Image.asset(
+            'assets/fonts/ride.jpg',
+            fit: BoxFit.cover,
           ),
-          // Semi-transparent overlay
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.3),
-            ),
+        ),
+        // Semi-transparent overlay
+        Positioned.fill(
+          child: Container(
+            color: Colors.black.withOpacity(0.3),
           ),
+        ),
 
-          // Login Box with Transparent Effect
-          Center(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // ✅ Frosted Glass Effect
-                    child: Container(
-                      padding: EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2), // ✅ Transparent White
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.3)), // ✅ Slight Border
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "RideShare",
-                            style: TextStyle(
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 1.5,
+        // Login Box with Transparent Effect
+        Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Frosted Glass Effect
+                  child: Container(
+                    padding: EdgeInsets.all(20),
+                    width: 350,  // Set a fixed width
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2), // Transparent White
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)), // Slight Border
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "RideShare",
+                          style: TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          "Ride the Future",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white70,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        SizedBox(height: 30),
+
+                        // Username Input
+                        TextField(
+                          controller: _usernameController,
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: "Username or Contact",
+                            labelStyle: TextStyle(color: Colors.white70),
+                            prefixIcon: Icon(Icons.person, color: Colors.white),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: Colors.white70),
                             ),
                           ),
-                          SizedBox(height: 5),
-                          Text(
-                            "Ride the Future",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white70,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          SizedBox(height: 30),
+                        ),
+                        SizedBox(height: 16),
 
-                          // Username Input
-                          TextField(
-                            controller: _usernameController,
-                            style: TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: "Username or Contact",
-                              labelStyle: TextStyle(color: Colors.white70),
-                              prefixIcon: Icon(Icons.person, color: Colors.white),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(color: Colors.white70),
+                        // Password Input
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: "Password",
+                            labelStyle: TextStyle(color: Colors.white70),
+                            prefixIcon: Icon(Icons.lock, color: Colors.white),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: Colors.white70),
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                color: Colors.white,
                               ),
+                              onPressed: _togglePasswordVisibility,
                             ),
                           ),
-                          SizedBox(height: 16),
+                        ),
+                        SizedBox(height: 10),
 
-                          // Password Input
-                          TextField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            style: TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: "Password",
-                              labelStyle: TextStyle(color: Colors.white70),
-                              prefixIcon: Icon(Icons.lock, color: Colors.white),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(color: Colors.white70),
-                              ),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                                  color: Colors.white,
-                                ),
-                                onPressed: _togglePasswordVisibility,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 10),
-
-                          // Forgot Password
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ForgotPasswordScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text("Forgot Password?", style: TextStyle(color: Colors.white)),
-                            ),
-                          ),
-
-                          SizedBox(height: 16),
-
-                          // Login Button
-                          AnimatedLoginButton(
-                            text: "Log In",
-                            icon: Icons.login,
-                            color: Colors.green.shade600,
-                            onPressed: _login,
-                          ),
-
-                          SizedBox(height: 10),
-
-                          // Register Text
-                          TextButton(
+                        // Forgot Password
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
                             onPressed: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const RegistrationScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => ForgotPasswordScreen(),
+                                ),
                               );
                             },
-                            child: const Text(
-                              "Don't have an account? Register",
-                              style: TextStyle(color: Colors.white),
-                            ),
+                            child: const Text("Forgot Password?", style: TextStyle(color: Colors.white)),
                           ),
-                        ],
-                      ),
+                        ),
+
+                        SizedBox(height: 16),
+
+                        // Login Button
+                        AnimatedLoginButton(
+                          text: "Log In",
+                          icon: Icons.login,
+                          color: Colors.green.shade600,
+                          onPressed: _login,
+                        ),
+
+                        SizedBox(height: 10),
+
+                        // Register Text
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const RegistrationScreen()),
+                            );
+                          },
+                          child: const Text(
+                            "Don't have an account? Register",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 }
