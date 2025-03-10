@@ -158,7 +158,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                           _buildTextField(_nameController, "Name", Icons.person),
                           const SizedBox(height: 12),
-                          _buildTextField(_contactController, "Contact", Icons.phone),
+                          _buildTextField(_contactController, "Contact", Icons.phone, keyboardType: TextInputType.number),
                           const SizedBox(height: 12),
                           _buildTextField(_passwordController, "Password", Icons.lock, obscureText: true),
                           const SizedBox(height: 12),
@@ -217,10 +217,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   // Custom TextField builder
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool obscureText = false}) {
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool obscureText = false,TextInputType keyboardType = TextInputType.text,}) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
+      keyboardType: keyboardType,
+        inputFormatters: keyboardType == TextInputType.number
+        ? [FilteringTextInputFormatter.digitsOnly,LengthLimitingTextInputFormatter(10)] // Only allow digits
+        : [],
       style: TextStyle(color: Colors.white),
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: Colors.white),
@@ -234,6 +238,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
       ),
+      
     );
   }
 }
