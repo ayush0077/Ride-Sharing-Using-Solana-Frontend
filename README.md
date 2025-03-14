@@ -1,16 +1,7 @@
-# flutter_ride_sharing
+# Frontend
 
-A new Flutter project.
+This is the frontend for the Solana based RideSharing System
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The project demo can be viewed from https://drive.google.com/file/d/18gF8iEEkOQRrwfBGBv0bKSoCPCofd4te/view?usp=drive_link
